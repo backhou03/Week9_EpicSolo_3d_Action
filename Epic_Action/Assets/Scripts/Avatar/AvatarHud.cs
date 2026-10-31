@@ -24,6 +24,7 @@ public class AvatarHud : MonoBehaviour
     {
         if (avatar == null || avatar.Weapon == null) return;
         EnsureStyles();
+        DrawHealth();
         if (avatar.Moveset == null || !avatar.Moveset.Aiming) DrawCrosshair();
 
         WeaponData weapon = avatar.Weapon;
@@ -65,6 +66,19 @@ public class AvatarHud : MonoBehaviour
     }
 
     // Four ticks around the screen centre, which is where the rifle's aim ray points.
+    void DrawHealth()
+    {
+        float scale = Screen.height / 720f;
+        var rect = new Rect(16f * scale, 16f * scale, 240f * scale, 26f * scale);
+        Color previous = GUI.color;
+        GUI.color = new Color(0.08f, 0.08f, 0.1f, 0.9f);
+        GUI.DrawTexture(rect, Texture2D.whiteTexture);
+        GUI.color = avatar.Invulnerable ? new Color(1f, 0.8f, 0.3f) : new Color(0.25f, 0.8f, 0.35f);
+        GUI.DrawTexture(new Rect(rect.x, rect.y, rect.width * avatar.Hp / WeaponAvatar.MaxHp, rect.height), Texture2D.whiteTexture);
+        GUI.color = previous;
+        GUI.Label(rect, avatar.IsDead ? "  사망 · 2초 후 리스폰" : $"  HP {avatar.Hp} / {WeaponAvatar.MaxHp}", bodyStyle);
+    }
+
     static void DrawCrosshair()
     {
         float scale = Screen.height / 720f;

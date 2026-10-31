@@ -33,15 +33,29 @@ public class HammerMoveset : AvatarMoveset
     const float UltimateTickInterval = 0.2f;
     const float UltimateTickDamage = 0.45f;
     const float UltimateSpinSpeed = 540f;
-    // Bounce locomotion: one full head-over-handle flip per hop, head striking the floor on every landing.
-    const float HopDistance = 2f;
-    const float HopHeight = 0.35f;
-    const float LandSquash = 0.14f;
-    const float SquashDecay = 16f;
+    // Head-pivot locomotion: the head thumps down and stays put while the handle vaults over it, then the whole
+    // hammer whips through the air (flat apex) and lands head-first one beat later. Travel comes in bursts.
+    const float HopCycle = 0.5f;
+    const float PlantFraction = 0.35f;
+    const float HopHeight = 0.8f;
+    const float VaultLean = 80f;
+    const float HopAcceleration = 160f;
+    const float LandSquash = 0.28f;
+    const float SquashDecay = 12f;
     const float FloorClearance = 0.02f;
     const float PoseSharpness = 30f;
+    // Stiff enough that the head stays on its pivot while the pose spins.
+    const float SpinPoseSharpness = 200f;
     const float AttackTurnSpeed = 2400f;
-    const float SpinPitch = 90f;
+    // Charge and ultimate orbit the head: the handle leans out and circles it, and the ultimate hops in beats.
+    const float ChargeLean = 70f;
+    const float UltimateBeat = 0.6f;
+    const float UltimatePlant = 0.2f;
+    const float UltimateHopHeight = 0.7f;
+    const float UltimateLeanLand = 50f;
+    const float UltimateLeanAir = 80f;
+    static readonly Vector3 SpinTrailBase = new Vector3(0f, 0.15f, 0f);
+    static readonly Vector3 SpinTrailTip = new Vector3(0f, 0.95f, 0f);
     const float SlamPitch = 105f;
     const float SlamPoseHeight = 0.8f;
     const float LaunchForward = 0.25f;
@@ -78,7 +92,8 @@ public class HammerMoveset : AvatarMoveset
     float rushUntil, specialUntil, dashUntil;
     bool charging, slamming, strikeApplied, poseHeld;
     float holdTime;
-    float modelRadius;
+    float ultimatePhase, ultimateYaw;
+    bool hopMoving, spinTrail;
     Bounds localBounds;
     Vector3 rushDirection;
     readonly System.Collections.Generic.HashSet<Enemy> rushHits = new System.Collections.Generic.HashSet<Enemy>();
@@ -99,6 +114,8 @@ public class HammerMoveset : AvatarMoveset
         : Time.time < buffUntil ? $"공격속도 증가 {buffUntil - Time.time:F1}초" : "";
 
     Vector3 Head => visual.TransformPoint((weapon.bladeBase + weapon.bladeTip) * 0.5f);
+    // The free end of the handle: the fast-moving tip while the head is the spin centre.
+    Vector3 HandleEnd => visual.position;
     Vector3 Facing => Quaternion.Euler(0f, swingFacing, 0f) * Vector3.forward;
     static Vector3 Ground(Vector3 p) => new Vector3(p.x, p.y + 0.03f, p.z);
 
@@ -114,7 +131,6 @@ public class HammerMoveset : AvatarMoveset
                 bounds.Encapsulate(visual.InverseTransformPoint(renderer.transform.TransformPoint(corner)));
         }
         localBounds = bounds;
-        modelRadius = Mathf.Max(bounds.min.magnitude, bounds.max.magnitude) * weapon.heldScale;
         fx = gameObject.AddComponent<HammerFx>();
         fx.Configure();
         trailNow = weapon.trailColor;
@@ -343,7 +359,6 @@ public class HammerMoveset : AvatarMoveset
         bool ultimate = Time.time < ultimateUntil;
         if (ultimate)
         {
-            transform.Rotate(0f, UltimateSpinSpeed * dt, 0f);
             if (Time.time >= nextUltimateHit)
             {
                 nextUltimateHit = Time.time + UltimateTickInterval;
@@ -364,7 +379,11 @@ public class HammerMoveset : AvatarMoveset
         else if (charging || slamming || swinging) FaceYaw(swingFacing, AttackTurnSpeed, dt);
         else UpdateFacing(input.wish, dt);
 
-        Accelerate(input.wish * (MoveSpeed * MoveSpeedScale * (Busy && !ultimate ? weapon.swingMoveScale : 1f)), Acceleration, dt);
+        // Hop and ultimate travel in bursts: standing still while the head is planted, faster in the air.
+        float beatSpeed = 1f, beatAcceleration = Acceleration;
+        if (ultimate) { beatSpeed = BeatSpeed(ultimatePhase, UltimatePlant); beatAcceleration = HopAcceleration; }
+        else if (hopMoving) { beatSpeed = BeatSpeed(hopPhase, PlantFraction); beatAcceleration = HopAcceleration; }
+        Accelerate(input.wish * (MoveSpeed * MoveSpeedScale * beatSpeed * (Busy && !ultimate ? weapon.swingMoveScale : 1f)), beatAcceleration, dt);
         if (input.jump && avatar.IsGrounded && !Busy)
         {
             avatar.Hop(JumpHeight);
@@ -391,11 +410,33 @@ public class HammerMoveset : AvatarMoveset
         Vector3 squashScale = Vector3.one;
         if (charging || slamming) spinTier = Mathf.Clamp01(spinDegrees / (360f * MaxDamageSpins));
         if (charging) scale *= 1f + SpinGrowth * spinTier;
-        if (ultimate || charging)
+        bool wasHop = hopMoving;
+        hopMoving = false;
+        float poseSharpness = PoseSharpness;
+        if (ultimate)
         {
-            // Lie flat and spin: the lowest corner rests on the floor so the head sweeps at body height.
-            rotation = Quaternion.Euler(SpinPitch, charging ? spinDegrees : 0f, 0f);
+            // Head-pivot whirl: the head is the planted centre, the handle leans out and circles it,
+            // flinging wider and faster in the air and dragging on every landing.
+            ultimatePhase += dt / UltimateBeat;
+            if (ultimatePhase >= 1f)
+            {
+                ultimatePhase -= Mathf.Floor(ultimatePhase);
+                squash = 1f;
+                UltimateLandFx();
+            }
+            float arc = ultimatePhase < UltimatePlant ? 0f : Arc((ultimatePhase - UltimatePlant) / (1f - UltimatePlant));
+            ultimateYaw += UltimateSpinSpeed * (ultimatePhase < UltimatePlant ? 0.5f : 0.5f + 0.8f * arc) * dt;
+            rotation = Quaternion.Euler(0f, ultimateYaw, 0f) * Quaternion.Euler(180f + Mathf.Lerp(UltimateLeanLand, UltimateLeanAir, arc), 0f, 0f);
+            lift = UltimateHopHeight * arc;
             floorAlign = true;
+            poseSharpness = SpinPoseSharpness;
+        }
+        else if (charging)
+        {
+            // Same rule while charging: handle circles the planted head.
+            rotation = Quaternion.Euler(0f, spinDegrees, 0f) * Quaternion.Euler(180f + ChargeLean, 0f, 0f);
+            floorAlign = true;
+            poseSharpness = SpinPoseSharpness;
         }
         else if (slamming || Time.time < specialUntil || Time.time < dashUntil || Time.time < rushUntil)
         {
@@ -404,17 +445,33 @@ public class HammerMoveset : AvatarMoveset
         }
         else if (!swinging && input.wish.sqrMagnitude > 0.01f)
         {
-            hopPhase += input.wish.magnitude * MoveSpeed * MoveSpeedScale * dt / HopDistance;
+            // Restart mid-air (handle down, head up is the idle pose) so the first step answers at once.
+            if (!wasHop) hopPhase = PlantFraction + (1f - PlantFraction) * 0.64f;
+            hopMoving = true;
+            hopPhase += input.wish.magnitude * dt / HopCycle;
             if (hopPhase >= 1f)
             {
                 hopPhase -= Mathf.Floor(hopPhase);
                 squash = 1f;
                 if (avatar.IsGrounded) ReboundFx();
             }
-            // Head down at landing, then flips forward over the hop arc.
-            rotation = Quaternion.Euler(180f + 360f * Mathf.SmoothStep(0f, 1f, hopPhase), 0f, 0f);
-            lift = HopHeight * 4f * hopPhase * (1f - hopPhase);
+            float lean;
+            if (hopPhase < PlantFraction)
+            {
+                // Head planted: the handle vaults from leaning back to leaning forward.
+                float u = hopPhase / PlantFraction;
+                lean = Mathf.Lerp(-VaultLean, VaultLean, u * u * (3f - 2f * u));
+            }
+            else
+            {
+                // Airborne: the handle whips over the top and the head comes down on the next spot.
+                float u = (hopPhase - PlantFraction) / (1f - PlantFraction);
+                lean = VaultLean + (360f - 2f * VaultLean) * Mathf.Lerp(u, u * u, 0.6f);
+                lift = HopHeight * Arc(u);
+            }
+            rotation = Quaternion.Euler(180f + lean, 0f, 0f);
             floorAlign = true;
+            poseSharpness = SpinPoseSharpness;
         }
         else if (swinging) rotation = Quaternion.Euler(tilt, 0f, 0f);
         squash *= Mathf.Exp(-SquashDecay * dt);
@@ -422,8 +479,12 @@ public class HammerMoveset : AvatarMoveset
         punch *= Mathf.Exp(-PunchDecay * dt);
         Vector3 fullScale = squashScale * (scale * (1f + punch));
         if (floorAlign)
-            position = pose.InverseTransformVector(Vector3.up) * (transform.position.y + FloorClearance + lift - LowestY(pose, position, rotation, fullScale));
-        EaseMotion(position, rotation, fullScale, PoseSharpness, dt);
+        {
+            // Pin the head centre over the avatar, then drop the lowest corner onto the floor.
+            position = -(rotation * Vector3.Scale(fullScale, HeadInMotion()));
+            position += pose.InverseTransformVector(Vector3.up) * (transform.position.y + FloorClearance + lift - LowestY(pose, position, rotation, fullScale));
+        }
+        EaseMotion(position, rotation, fullScale, poseSharpness, dt);
         TickFx(dt);
     }
 
@@ -437,6 +498,20 @@ public class HammerMoveset : AvatarMoveset
         return low;
     }
 
+    // Head centre in Motion space.
+    Vector3 HeadInMotion() => visual.localPosition
+        + visual.localRotation * Vector3.Scale(visual.localScale, (weapon.bladeBase + weapon.bladeTip) * 0.5f);
+
+    // Apex lingers: flat top, sharp take-off and landing.
+    static float Arc(float u)
+    {
+        float x = 2f * u - 1f;
+        return 1f - x * x * x * x;
+    }
+
+    // Standing still while planted, the rest of the distance in the air.
+    static float BeatSpeed(float phase, float plant) => phase < plant ? 0f : 1f / (1f - plant);
+
     // Grow past the final size, then settle.
     float UltimatePop()
     {
@@ -446,11 +521,19 @@ public class HammerMoveset : AvatarMoveset
 
     void ReboundFx()
     {
-        Vector3 ground = Ground(transform.position + transform.forward * (modelRadius * 0.4f));
-        fx.Dust(ground, 3, 1.8f, 0.5f, 0.45f, 0.5f);
-        fx.Ring(ground, 0.9f, 0.22f, new Color(1f, 0.8f, 0.5f, 0.35f));
-        avatar.CameraRig.Shake(0.03f, 0.08f);
-        punch += 0.03f;
+        // The head is pinned over the avatar, so the thump lands right under it.
+        fx.Impact(Ground(transform.position), 1.1f, 0.25f);
+        avatar.CameraRig.Shake(0.06f, 0.1f);
+        punch += 0.05f;
+    }
+
+    void UltimateLandFx()
+    {
+        Vector3 ground = Ground(transform.position);
+        fx.Impact(ground, UltimateRange * 0.4f, 0.55f);
+        avatar.CameraRig.Shake(0.14f, 0.15f);
+        punch = Mathf.Max(punch, 0.06f);
+        HitFeedback.Instance?.PlaySonicImpact(ground + Vector3.up * 0.1f, Vector3.up, true);
     }
 
     // Everything that runs every frame: trail, spin build-up, dive streak, dash/rush wake, buff aura, landing.
@@ -469,17 +552,21 @@ public class HammerMoveset : AvatarMoveset
             bool swingTrail = swinging && attackTime < currentSwing.windup + currentSwing.strike;
             trail.Emitting = swingTrail || charging || slamming || ultimate || rush || Time.time < dashFxUntil;
             Color color = TrailColor();
-            if (color != trailNow)
+            // While the head is the spin centre the ribbon rides the swinging handle instead.
+            bool onHandle = charging || ultimate;
+            if (color != trailNow || onHandle != spinTrail)
             {
                 trailNow = color;
-                trail.Configure(weapon.bladeBase, weapon.bladeTip, color);
+                spinTrail = onHandle;
+                if (onHandle) trail.Configure(SpinTrailBase, SpinTrailTip, color);
+                else trail.Configure(weapon.bladeBase, weapon.bladeTip, color);
             }
         }
 
         if (swinging && attackTime < currentSwing.windup + currentSwing.strike)
             fx.Smear(head, SwingSmearSize, 0.14f, new Color(1f, 0.85f, 0.5f, 0.3f));
 
-        if (charging) ChargeFx(dt, feet, head);
+        if (charging) ChargeFx(dt, feet, HandleEnd);
         else lastSpinCount = 0;
 
         if (slamming)
@@ -532,9 +619,10 @@ public class HammerMoveset : AvatarMoveset
 
         if (ultimate)
         {
-            fx.Smear(head, 2.4f, 0.25f, new Color(1f, 0.85f, 0.45f, 0.45f));
+            Vector3 tip = HandleEnd;
+            fx.Smear(tip, 2.4f, 0.25f, new Color(1f, 0.85f, 0.45f, 0.45f));
             int n = HammerFx.Steps(ref sparkAcc, 50f, dt);
-            if (n > 0) fx.Sparks(head, (head - transform.position).normalized + Vector3.up * 0.3f, n, 9f, 0.5f, 0.09f, 0.5f);
+            if (n > 0) fx.Sparks(tip, (tip - head).normalized + Vector3.up * 0.3f, n, 9f, 0.5f, 0.09f, 0.5f);
             int d = HammerFx.Steps(ref dustAcc, 22f, dt);
             if (d > 0) fx.Dust(feet, d, 4f, UltimateRange * 0.7f, 1.2f, 0.9f);
             avatar.CameraRig.Shake(0.05f, 0.1f);
@@ -563,7 +651,7 @@ public class HammerMoveset : AvatarMoveset
     }
 
     // The faster it spins, the more it glows, shakes and throws: a ring at the future slam radius marks each rotation.
-    void ChargeFx(float dt, Vector3 feet, Vector3 head)
+    void ChargeFx(float dt, Vector3 feet, Vector3 tip)
     {
         int spins = Mathf.FloorToInt(spinDegrees / 360f);
         Color tint = Color.Lerp(HammerFx.Ember, new Color(1f, 0.3f, 0.2f), Mathf.Clamp01(spinTier * 1.4f));
@@ -581,14 +669,14 @@ public class HammerMoveset : AvatarMoveset
             if (shown >= MaxDamageSpins)
             {
                 // Fully charged.
-                HitFeedback.Instance?.PlayUpgradeFlash(head);
+                HitFeedback.Instance?.PlayUpgradeFlash(tip);
                 fx.Ring(feet, range * 0.6f, 0.3f, Color.white);
                 fx.Crack(feet, range * 0.8f, 2f);
             }
         }
-        fx.Smear(head, 0.9f + 0.7f * spinTier, 0.18f, new Color(tint.r, tint.g, tint.b, 0.35f + 0.25f * spinTier));
+        fx.Smear(tip, 0.9f + 0.7f * spinTier, 0.18f, new Color(tint.r, tint.g, tint.b, 0.35f + 0.25f * spinTier));
         int n = HammerFx.Steps(ref sparkAcc, 20f + 100f * spinTier, dt);
-        if (n > 0) fx.Sparks(head, head - transform.position + Vector3.up * 0.3f, n, 4f + 6f * spinTier, 0.5f);
+        if (n > 0) fx.Sparks(tip, tip - transform.position + Vector3.up * 0.3f, n, 4f + 6f * spinTier, 0.5f);
         int d = HammerFx.Steps(ref dustAcc, 6f + 24f * spinTier, dt);
         if (d > 0) fx.Dust(feet, d, 2.5f + 2f * spinTier, 0.8f + 0.8f * spinTier, 0.5f, 0.7f);
         avatar.CameraRig.Shake(0.015f + 0.05f * spinTier, 0.1f);
@@ -673,6 +761,8 @@ public class HammerMoveset : AvatarMoveset
         ultimateUntil = Time.time + UltimateDuration;
         nextUltimateHit = Time.time;
         ultimateStart = Time.time;
+        ultimatePhase = 0f;
+        ultimateYaw = 0f;
         // Growing hammer pounds the floor as it swells.
         Vector3 ground = Ground(transform.position);
         GroundImpact(ground, UltimateRange, 1.3f, 0);

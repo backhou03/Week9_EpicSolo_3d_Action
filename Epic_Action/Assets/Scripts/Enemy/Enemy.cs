@@ -18,6 +18,7 @@ public class Enemy : MonoBehaviour
     [SerializeField] float gravity = -25f;
     [SerializeField] float knockbackDrag = 7f;
     [SerializeField] float respawnDelay = 3f;
+    [SerializeField] bool respawn = true;
     [SerializeField] Transform visual;
     [SerializeField] Renderer bodyRenderer;
     [SerializeField] Material cutMaterial;
@@ -53,6 +54,11 @@ public class Enemy : MonoBehaviour
     public bool IsDead { get; private set; }
     public Vector3 Center => cc.bounds.center;
     public float Radius => cc.radius;
+    public bool IsImpaired => staggerTimer > 0f || knockbackVelocity.sqrMagnitude > 0.25f || nailPinOwner != null;
+    public bool ExternalMovement { get; set; }
+    public Vector3 DesiredVelocity { get; set; }
+    public Color? TelegraphColor { get; set; }
+    public event System.Action<HitInfo> HitReceived;
 
     void Awake()
     {
@@ -166,6 +172,7 @@ public class Enemy : MonoBehaviour
     public void TakeHit(HitInfo info)
     {
         if (IsDead) return;
+        HitReceived?.Invoke(info);
         if (info.crush)
         {
             StartCoroutine(SonicBurstRoutine(info.direction));
@@ -432,8 +439,9 @@ public class Enemy : MonoBehaviour
         {
             Vector3 to = target.position - transform.position;
             to.y = 0f;
-            if (to.magnitude > stopDistance) chase = to.normalized * moveSpeed;
-            if (to.sqrMagnitude > 0.01f)
+            if (ExternalMovement) chase = Vector3.ClampMagnitude(DesiredVelocity, 1f) * moveSpeed;
+            else if (to.magnitude > stopDistance) chase = to.normalized * moveSpeed;
+            if (!ExternalMovement && to.sqrMagnitude > 0.01f)
             {
                 var face = Quaternion.LookRotation(to);
                 transform.rotation = Quaternion.RotateTowards(transform.rotation, face, turnSpeed * dt);
@@ -469,7 +477,7 @@ public class Enemy : MonoBehaviour
         }
         else
         {
-            SetColor(baseColor);
+            SetColor(TelegraphColor ?? baseColor);
         }
     }
 
@@ -518,6 +526,7 @@ public class Enemy : MonoBehaviour
 
     void Respawn()
     {
+        if (!respawn) { Destroy(gameObject); return; }
         ClearNailDamage();
         transform.SetPositionAndRotation(spawnPosition, spawnRotation);
         hp = maxHp;

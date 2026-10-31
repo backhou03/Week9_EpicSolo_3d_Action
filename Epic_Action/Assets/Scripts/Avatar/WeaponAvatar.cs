@@ -22,6 +22,17 @@ public class WeaponAvatar : MonoBehaviour
     GameObject visual;
 
     const float UltimateDamageRequired = 300f;
+    public const int MaxHp = 100;
+    public const float HurtInvulnerability = 0.65f;
+    public const float RespawnDelay = 2f;
+    const float HurtKnockback = 7f;
+    const float HurtDrag = 12f;
+    Vector3 spawnPosition, hurtVelocity;
+    Quaternion spawnRotation;
+    float respawnAt;
+    public int Hp { get; private set; } = MaxHp;
+    public bool IsDead => Hp <= 0;
+    public Vector3 Center => cc.bounds.center;
     int slot;
     float invulnerableUntil, dashReadyAt;
     readonly System.Collections.Generic.Dictionary<WeaponData, float> skillReadyAt = new System.Collections.Generic.Dictionary<WeaponData, float>();
@@ -64,6 +75,46 @@ public class WeaponAvatar : MonoBehaviour
     void Awake()
     {
         cc = GetComponent<CharacterController>();
+        spawnPosition = transform.position;
+        spawnRotation = transform.rotation;
+    }
+
+    public void TakeDamage(int damage, Vector3 from)
+    {
+        if (damage <= 0 || IsDead || Invulnerable) return;
+        Hp = Mathf.Max(0, Hp - damage);
+        GrantInvulnerability(HurtInvulnerability);
+        Vector3 away = transform.position - from;
+        away.y = 0f;
+        if (away.sqrMagnitude < 0.01f) away = -transform.forward;
+        hurtVelocity = away.normalized * HurtKnockback;
+        HitFeedback.Instance?.PlayTick(new HitInfo { point = Center, direction = away.normalized });
+        if (!IsDead) return;
+        respawnAt = Time.time + RespawnDelay;
+        CancelLunge();
+        swinger.Cancel();
+        if (moveset != null)
+        {
+            moveset.Teardown();
+            Destroy(moveset);
+            moveset = null;
+        }
+        if (visual != null) visual.SetActive(false);
+        PlanarVelocity = Vector3.zero;
+        VerticalVelocity = 0f;
+    }
+
+    void Respawn()
+    {
+        cc.enabled = false;
+        transform.SetPositionAndRotation(spawnPosition, spawnRotation);
+        cc.enabled = true;
+        Hp = MaxHp;
+        hurtVelocity = Vector3.zero;
+        PlanarVelocity = Vector3.zero;
+        VerticalVelocity = 0f;
+        Equip(weapon);
+        GrantInvulnerability(HurtInvulnerability);
     }
 
     void OnEnable()
@@ -86,6 +137,11 @@ public class WeaponAvatar : MonoBehaviour
     void Update()
     {
         float dt = Time.deltaTime;
+        if (IsDead)
+        {
+            if (Time.time >= respawnAt) Respawn();
+            return;
+        }
         ReadWeaponKeys();
         if (moveset == null) return;
 
@@ -108,7 +164,8 @@ public class WeaponAvatar : MonoBehaviour
         moveset.Tick(input, dt);
         VerticalVelocity += gravity * dt;
 
-        Vector3 velocity = PlanarVelocity + Vector3.up * VerticalVelocity;
+        Vector3 velocity = PlanarVelocity + hurtVelocity + Vector3.up * VerticalVelocity;
+        hurtVelocity *= Mathf.Exp(-HurtDrag * dt);
         if (lungeTimeLeft > 0f)
         {
             velocity += lungeVelocity;

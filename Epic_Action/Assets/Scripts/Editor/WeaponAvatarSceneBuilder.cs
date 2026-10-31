@@ -12,7 +12,6 @@ public static partial class WeaponAvatarSceneBuilder
     const string AvatarDir = "Assets/Data/Avatar";
     const string InputPath = "Assets/InputSystem_Actions.inputactions";
     const string RiflePath = "Assets/Weapons/M4_Casual/M4_Casual.obj";
-    const int EnemyCount = 7;
 
     [MenuItem("Tools/Epic Action/Build Weapon Avatar Scene (resets Avatar WeaponData)")]
     public static void Build()
@@ -27,10 +26,6 @@ public static partial class WeaponAvatarSceneBuilder
         var scene = EditorSceneManager.NewScene(NewSceneSetup.DefaultGameObjects, NewSceneMode.Single);
         var ground = GameSceneBuilder.MakeLit("Ground", new Color(0.62f, 0.7f, 0.58f), 0.1f, true);
         var wall = GameSceneBuilder.MakeLit("Wall", new Color(0.45f, 0.5f, 0.58f), 0.2f, false);
-        var enemyMat = GameSceneBuilder.MakeLit("Enemy", new Color(0.9f, 0.22f, 0.2f), 0.4f, false);
-        var visorMat = GameSceneBuilder.MakeLit("Visor", new Color(0.05f, 0.05f, 0.08f), 0.9f, false);
-        var cutMat = GameSceneBuilder.MakeLit("CutFace", new Color(1f, 0.93f, 0.55f), 0.2f, false);
-        var bloodMat = GameSceneBuilder.MakeLit("BloodCut", new Color(0.62f, 0.02f, 0.04f), 0.35f, false);
 
         var root = new GameObject("GameRoot").transform;
         GameSceneBuilder.BuildWorld(root, ground, wall);
@@ -51,7 +46,7 @@ public static partial class WeaponAvatarSceneBuilder
         fxGo.transform.SetParent(root);
         GameSceneBuilder.Set(fxGo.AddComponent<HitFeedback>(), "cameraRig", camRig);
 
-        for (int i = 0; i < EnemyCount; i++) GameSceneBuilder.BuildEnemy(root, i, enemyMat, visorMat, cutMat, bloodMat);
+        BuildEnemies(root, avatar);
         GameSceneBuilder.Set(camRig, "target", avatar.transform);
 
         EditorSceneManager.SaveScene(scene, ScenePath);
