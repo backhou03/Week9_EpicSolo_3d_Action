@@ -232,8 +232,15 @@ MonoBehaviour:
   sonicMuzzle: {x: 0, y: 0.27, z: 0.4}
   rifle: 1
   rifleMuzzle: {x: 0, y: 0.07557501, z: 0.542}
+  rifleSightRear: {x: 0, y: 0.199, z: -0.1095}
+  rifleSightFront: {x: 0, y: 0.2455, z: 0.34399998}
   fireInterval: 0.09
   fireRange: 30
+  rifleJumpShots: 4
+  rifleJumpHeight: 2.4
+  rifleStandPivot: {x: 0, y: 0, z: 0}
+  rifleStandPitch: -78
+  rifleAimAssist: 1
   chainsaw: 0
   tickInterval: 0
   tickDamageScale: 0.25
@@ -256,3 +263,5 @@ MonoBehaviour:
   fovPunch: 1.2
   trailColor: {r: 1, g: 0.9, b: 0.6, a: 0.7}
   upgradeTo: {fileID: 0}
+  evolveKills: 5
+  evolveDamage: 150

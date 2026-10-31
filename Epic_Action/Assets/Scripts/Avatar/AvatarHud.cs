@@ -4,7 +4,7 @@ using UnityEngine;
 // Bottom-right panel for the weapon avatar (weapon, number-key slots, controls), drawn with IMGUI like WeaponHud.
 public class AvatarHud : MonoBehaviour
 {
-    const string Controls = "WASD 이동 · Space 점프 · 좌/우클릭 공격 · Q 진화 · 1~4 무기 교체";
+    const string Controls = "WASD 이동 · Space 점프 · 좌/우클릭 공격 · Q 진화 · 1~3 무기 교체";
 
     [SerializeField] WeaponAvatar avatar;
 
@@ -33,11 +33,16 @@ public class AvatarHud : MonoBehaviour
         var slots = avatar.Slots;
         for (int i = 0; i < slots.Length; i++)
         {
-            if (slots[i] == null) continue;
-            string label = (i + 1) + " " + slots[i].displayName;
-            text.Append(InChain(slots[i], weapon) ? "[" + label + "]" : label).Append("  ");
+            WeaponData held = avatar.SlotWeapon(i);
+            if (held == null) continue;
+            string label = (i + 1) + " " + held.displayName;
+            text.Append(held == weapon ? "[" + label + "]" : label).Append("  ");
         }
         text.Append('\n').Append(Controls);
+        if (weapon.upgradeTo != null)
+            text.Append('\n').Append(avatar.CanEvolve
+                ? "Q 진화 가능! → " + weapon.upgradeTo.displayName
+                : $"진화: 처치 {avatar.Kills}/{weapon.evolveKills} · 데미지 {avatar.DamageDealt}/{weapon.evolveDamage}");
 
         var moveset = avatar.Moveset;
         if (moveset != null)
@@ -79,14 +84,6 @@ public class AvatarHud : MonoBehaviour
         GUI.DrawTexture(new Rect(rect.x - outline, rect.y - outline, rect.width + 2f * outline, rect.height + 2f * outline), Texture2D.whiteTexture);
         GUI.color = Color.white;
         GUI.DrawTexture(rect, Texture2D.whiteTexture);
-    }
-
-    // Whether `weapon` is the slot's weapon or one of its evolutions.
-    static bool InChain(WeaponData slot, WeaponData weapon)
-    {
-        for (int i = 0; slot != null && i < 4; i++, slot = slot.upgradeTo)
-            if (slot == weapon) return true;
-        return false;
     }
 
     void EnsureStyles()

@@ -144,6 +144,16 @@ public class WeaponData : ScriptableObject
     [Tooltip("Seconds between shots while the attack button is held.")]
     public float fireInterval = 0.09f;
     public float fireRange = 30f;
+    [Tooltip("Shots fired downward by a jump.")]
+    public int rifleJumpShots = 4;
+    [Tooltip("Height reached by the last jump shot.")]
+    public float rifleJumpHeight = 2.4f;
+    [Tooltip("Model-space point that touches the ground while walking. Zero = bladeTip.")]
+    public Vector3 rifleStandPivot;
+    [Tooltip("Pitch (degrees) while walking on the ground.")]
+    public float rifleStandPitch = -78f;
+    [Tooltip("Hip-fire snaps to the nearest enemy.")]
+    public bool rifleAimAssist = true;
 
     [Header("Chainsaw")]
     [Tooltip("Attach ChainsawDriver (chain loop, engine sound) to the weapon visual.")]
@@ -193,4 +203,8 @@ public class WeaponData : ScriptableObject
 
     [Header("Skill")]
     public WeaponData upgradeTo;
+    [Tooltip("Weapon avatar: kills that unlock the evolution (either this or evolveDamage is enough).")]
+    public int evolveKills = 5;
+    [Tooltip("Weapon avatar: total damage dealt that unlocks the evolution.")]
+    public int evolveDamage = 150;
 }

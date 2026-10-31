@@ -526,6 +526,11 @@ MonoBehaviour:
   rifleSightFront: {x: 0, y: 0, z: 0}
   fireInterval: 0.09
   fireRange: 30
+  rifleJumpShots: 4
+  rifleJumpHeight: 2.4
+  rifleStandPivot: {x: 0, y: 0, z: 0}
+  rifleStandPitch: -78
+  rifleAimAssist: 1
   chainsaw: 1
   tickInterval: 0.05
   tickDamageScale: 0.1
@@ -548,3 +553,5 @@ MonoBehaviour:
   fovPunch: 2
   trailColor: {r: 1, g: 0.6, b: 0.15, a: 0.85}
   upgradeTo: {fileID: 0}
+  evolveKills: 5
+  evolveDamage: 150

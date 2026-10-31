@@ -13,12 +13,7 @@ public class RifleMoveset : AvatarMoveset
     const float FireMoveScale = 0.6f;
     const float FireGlideAcceleration = 30f;
     const float JumpFlipTime = 0.06f;
-    const int JumpShots = 4;
     const float JumpShotInterval = 0.05f;
-    // Each shot raises the launch speed until the last one reaches this height.
-    const float JumpHeight = 2.4f;
-    const float StandPitch = -78f;
-    const float RisePitch = -64f;
     const float MuzzleDownPitch = 90f;
     const float LandSquash = 0.8f;
     const float LandSquashTime = 0.1f;
@@ -119,7 +114,7 @@ public class RifleMoveset : AvatarMoveset
         aiming = input.altHeld && avatar.CameraRig != null && !swinging && !jumpQueued && jumpShotsLeft == 0;
         if (avatar.CameraRig != null) avatar.CameraRig.Sight = aiming ? sightPoint : null;
         if (!firing || dt <= 0f) return;
-        aimPoint = FindAimPoint(!aiming);
+        aimPoint = FindAimPoint(!aiming && weapon.rifleAimAssist);
         if (!aiming) FaceYaw(YawTo(aimPoint), AimTurnSpeed, dt);
         if (fireTimer > 0f) return;
         fireTimer = Mathf.Max(0.02f, weapon.fireInterval);
@@ -168,7 +163,7 @@ public class RifleMoveset : AvatarMoveset
             if (jumpFlipTimer <= 0f)
             {
                 jumpQueued = false;
-                jumpShotsLeft = JumpShots;
+                jumpShotsLeft = Mathf.Max(1, weapon.rifleJumpShots);
                 jumpShotTimer = 0f;
                 hopTimer = HopInterval;
             }
@@ -178,7 +173,9 @@ public class RifleMoveset : AvatarMoveset
         {
             jumpShotsLeft--;
             jumpShotTimer = JumpShotInterval;
-            avatar.Hop(JumpHeight * (JumpShots - jumpShotsLeft) / JumpShots, true);
+            int shots = Mathf.Max(1, weapon.rifleJumpShots);
+            // Each shot raises the launch speed until the last one reaches the jump height.
+            avatar.Hop(weapon.rifleJumpHeight * (shots - jumpShotsLeft) / shots, true);
             PropulsionShot(Vector3.down);
         }
         bool jumpShooting = jumpQueued || jumpShotsLeft > 0;
@@ -203,11 +200,12 @@ public class RifleMoveset : AvatarMoveset
             PivotPose(MuzzleDownPitch, weapon.rifleMuzzle * weapon.heldScale, Vector3.one, dt);
         else
         {
-            float pitch = !grounded && avatar.VerticalVelocity > 0f ? RisePitch : StandPitch;
+            float pitch = !grounded && avatar.VerticalVelocity > 0f ? weapon.rifleStandPitch + 14f : weapon.rifleStandPitch;
             Vector3 scale = grounded && squashTimer > 0f
                 ? new Vector3(1f / Mathf.Sqrt(LandSquash), 1f / Mathf.Sqrt(LandSquash), LandSquash)
                 : Vector3.one;
-            PivotPose(pitch, weapon.bladeTip * weapon.heldScale, scale, dt);
+            Vector3 standPivot = weapon.rifleStandPivot != Vector3.zero ? weapon.rifleStandPivot : weapon.bladeTip;
+            PivotPose(pitch, standPivot * weapon.heldScale, scale, dt);
         }
     }
 
@@ -269,6 +267,7 @@ public class RifleMoveset : AvatarMoveset
                     tick = false,
                 };
                 enemy.TakeHit(info);
+                avatar.RecordHit(info.damage, enemy.IsDead);
                 // Tick feedback gives automatic fire sparks without a melee-sized hit-stop.
                 if (HitFeedback.Instance != null) HitFeedback.Instance.PlayTick(info);
             }

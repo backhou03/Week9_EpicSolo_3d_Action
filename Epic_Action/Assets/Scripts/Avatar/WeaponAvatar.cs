@@ -20,6 +20,11 @@ public class WeaponAvatar : MonoBehaviour
     WeaponData weapon;
     GameObject visual;
 
+    // Per slot: the evolution it has reached and the progress toward the next one (kept across weapon swaps).
+    WeaponData[] slotWeapons;
+    int[] slotKills, slotDamage;
+    int slot;
+
     Vector3 lungeVelocity;
     float lungeTimeLeft;
 
@@ -31,6 +36,13 @@ public class WeaponAvatar : MonoBehaviour
     public WeaponData[] Slots => slots;
     public float Gravity => gravity;
     public bool IsGrounded => cc.isGrounded;
+    public int Kills => slotKills != null ? slotKills[slot] : 0;
+    public int DamageDealt => slotDamage != null ? slotDamage[slot] : 0;
+    public bool CanEvolve => weapon != null && weapon.upgradeTo != null
+        && (Kills >= weapon.evolveKills || DamageDealt >= weapon.evolveDamage);
+
+    // The weapon currently held by slot `i` (its evolution, once evolved).
+    public WeaponData SlotWeapon(int i) => slotWeapons != null ? slotWeapons[i] : slots[i];
 
     // Set by the moveset every frame; gravity and the CharacterController move are applied here.
     public Vector3 PlanarVelocity { get; set; }
@@ -54,6 +66,9 @@ public class WeaponAvatar : MonoBehaviour
 
     void Start()
     {
+        slotWeapons = (WeaponData[])slots.Clone();
+        slotKills = new int[slots.Length];
+        slotDamage = new int[slots.Length];
         if (slots.Length > 0 && slots[0] != null) Equip(slots[0]);
     }
 
@@ -63,7 +78,7 @@ public class WeaponAvatar : MonoBehaviour
         ReadWeaponKeys();
         if (moveset == null) return;
 
-        if (skill.WasPressedThisFrame() && !moveset.Busy && weapon.upgradeTo != null) Evolve();
+        if (skill.WasPressedThisFrame() && !moveset.Busy && CanEvolve) Evolve();
 
         Vector2 stick = move.ReadValue<Vector2>();
         Vector3 wish = Quaternion.Euler(0f, cameraRig.Yaw, 0f) * new Vector3(stick.x, 0f, stick.y);
@@ -97,15 +112,27 @@ public class WeaponAvatar : MonoBehaviour
         if (keyboard == null) return;
         for (int i = 0; i < slots.Length && i < 9; i++)
         {
-            if (!keyboard[Key.Digit1 + i].wasPressedThisFrame || slots[i] == null) continue;
-            Equip(slots[i]);
+            if (!keyboard[Key.Digit1 + i].wasPressedThisFrame || slotWeapons[i] == null) continue;
+            slot = i;
+            Equip(slotWeapons[i]);
             return;
         }
+    }
+
+    // Called by the moveset for every hit it lands on an enemy.
+    public void RecordHit(int damage, bool killed)
+    {
+        if (slotKills == null) return;
+        slotDamage[slot] += damage;
+        if (killed) slotKills[slot]++;
     }
 
     void Evolve()
     {
         HitFeedback.Instance.PlayUpgrade();
+        slotWeapons[slot] = weapon.upgradeTo;
+        slotKills[slot] = 0;
+        slotDamage[slot] = 0;
         Equip(weapon.upgradeTo);
         HitFeedback.Instance.PlayUpgradeFlash(visual.transform.position + Vector3.up * 0.8f);
     }

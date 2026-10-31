@@ -196,7 +196,9 @@ public abstract class AvatarMoveset : MonoBehaviour
             cutNormal = contact.cutNormal,
         };
 
+        bool wasAlive = !enemy.IsDead;
         enemy.TakeHit(info);
+        avatar.RecordHit(info.damage, wasAlive && enemy.IsDead);
         OnEnemyHit(enemy, tick, dir);
 
         if (enemy.IsDead && weapon.sliceOnKill) HitFeedback.Instance.PlaySlice(contact.point, dir, weapon.bloody);

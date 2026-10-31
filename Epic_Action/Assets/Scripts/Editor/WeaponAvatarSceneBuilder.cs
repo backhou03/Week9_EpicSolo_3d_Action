@@ -13,6 +13,8 @@ public static class WeaponAvatarSceneBuilder
     const string AvatarDir = "Assets/Data/Avatar";
     const string InputPath = "Assets/InputSystem_Actions.inputactions";
     const string RiflePath = "Assets/Weapons/M4_Casual/M4_Casual.obj";
+    const string PistolPath = "Assets/Weapons/LowPoly_Pistol/LowPoly_Pistol.obj";
+    const string PistolPrefabPath = "Assets/Weapons/LowPoly_Pistol/LowPoly_Pistol_Forward.prefab";
     const int EnemyCount = 7;
 
     [MenuItem("Tools/Epic Action/Build Weapon Avatar Scene (resets Avatar WeaponData)")]
@@ -90,17 +92,25 @@ public static class WeaponAvatarSceneBuilder
     static WeaponData[] BuildData()
     {
         var chainsaw = Chainsaw(Clone(DataDir + "/ChainsawRuler.asset", "Avatar_ChainsawRuler"));
-        var upgradedRuler = UpgradedRuler(Clone(DataDir + "/UpgradedRuler.asset", "Avatar_UpgradedRuler"));
         var normalRuler = NormalRuler(Clone(DataDir + "/NormalRuler.asset", "Avatar_NormalRuler"));
+        var normalShears = NormalShears(Clone(DataDir + "/NormalShears.asset", "Avatar_NormalShears"));
         var evolvedShears = EvolvedShears(Clone(DataDir + "/EvolvedShears.asset", "Avatar_EvolvedShears"));
+        var pistol = Pistol();
         var rifle = Rifle();
 
-        normalRuler.upgradeTo = upgradedRuler;
-        upgradedRuler.upgradeTo = chainsaw;
+        // Each slot starts at the first weapon; kills or damage unlock Q to evolve it.
+        normalRuler.upgradeTo = chainsaw;
+        normalShears.upgradeTo = evolvedShears;
+        pistol.upgradeTo = rifle;
 
-        var all = new List<WeaponData> { chainsaw, upgradedRuler, normalRuler, evolvedShears, rifle };
-        foreach (var d in all) GameSceneBuilder.Save(d);
-        return new[] { normalRuler, evolvedShears, chainsaw, rifle };
+        var all = new List<WeaponData> { chainsaw, normalRuler, normalShears, evolvedShears, pistol, rifle };
+        foreach (var d in all)
+        {
+            d.evolveKills = 5;
+            d.evolveDamage = 150;
+            GameSceneBuilder.Save(d);
+        }
+        return new[] { normalRuler, normalShears, pistol };
     }
 
     // Copies the original weapon; as an avatar it never breaks.
@@ -136,30 +146,6 @@ public static class WeaponAvatarSceneBuilder
         d.combo.Add(GameSceneBuilder.Swing(0.10f, 0.09f, 0.24f,
             new Vector3(0f, 0.9f, 0f), new Vector3(90f, 110f, 0f),
             new Vector3(0f, 0.9f, 0f), new Vector3(90f, -110f, 0f), lunge: 0.6f));
-        return d;
-    }
-
-    static WeaponData UpgradedRuler(WeaponData d)
-    {
-        d.heldScale = 1.8f;
-        d.hitRadius = 0.4f;
-        d.restPosition = Vector3.zero;
-        d.restEuler = Vector3.zero;
-        d.combo.Clear();
-        d.altCombo.Clear();
-        d.combo.Add(GameSceneBuilder.Swing(0.12f, 0.08f, 0.22f,
-            new Vector3(0f, 0.1f, -0.2f), new Vector3(-40f, 0f, 0f),
-            new Vector3(0f, 0.1f, 0.2f), new Vector3(95f, 0f, 0f), lunge: 0.9f, hitStop: 1.2f, shake: 1.2f));
-        d.combo.Add(GameSceneBuilder.Swing(0.10f, 0.09f, 0.24f,
-            new Vector3(0f, 0.9f, 0f), new Vector3(90f, 110f, 0f),
-            new Vector3(0f, 0.9f, 0f), new Vector3(90f, -110f, 0f), lunge: 0.7f, hitStop: 1.2f, shake: 1.2f));
-        // Leaping spin: the whole body turns once with the blade held out flat.
-        d.combo.Add(GameSceneBuilder.Swing(0.16f, 0.30f, 0.40f,
-            new Vector3(0f, 0.9f, 0f), new Vector3(90f, 40f, 0f),
-            new Vector3(0f, 0.9f, 0f), new Vector3(90f, 0f, 0f),
-            lunge: 1.5f, stagger: 0.6f, damage: 1.8f, knockback: 2f, hitStop: 1.8f, shake: 2f, heavy: true, chainAt: 0.8f,
-            bodyYaw: 360f, leap: 0.8f));
-        d.combo[2].strikeCurve = AnimationCurve.Linear(0f, 0f, 1f, 1f);
         return d;
     }
 
@@ -201,6 +187,19 @@ public static class WeaponAvatarSceneBuilder
         // Plant the edge during the fall, then keep it down for the rest of the strike.
         d.combo[3].strikeCurve = new AnimationCurve(new Keyframe(0f, 0f, 0f, 4f),
             new Keyframe(0.6f, 1f, 0f, 0f), new Keyframe(1f, 1f, 0f, 0f));
+        return d;
+    }
+
+    // Same stance as the evolved shears, on a smaller pair (about 1.1 m tall) with shorter lunges.
+    static WeaponData NormalShears(WeaponData d)
+    {
+        d.heldScale = 7.5f;
+        d.hitRadius = 0.25f;
+        d.restPosition = new Vector3(0f, d.bladeTip.magnitude * d.heldScale, 0f);
+        d.restEuler = new Vector3(0f, 90f, 180f);
+        d.combo.Clear();
+        d.altCombo.Clear();
+        AddShearsCombo(d, 50f, 1.1f);
         return d;
     }
 
@@ -271,12 +270,17 @@ public static class WeaponAvatarSceneBuilder
         d.hitRadius = 0.3f;
         d.rifle = true;
         d.rifleMuzzle = new Vector3(0f, b.center.y + b.extents.y * 0.3f, b.max.z);
-        Bounds aperture = PartBounds(model, "Rear_Aperture");
-        Bounds post = PartBounds(model, "Front_Sight_Post");
+        Bounds aperture = PartBounds(RiflePath, "Rear_Aperture", Quaternion.identity);
+        Bounds post = PartBounds(RiflePath, "Front_Sight_Post", Quaternion.identity);
         d.rifleSightRear = aperture.center;
         d.rifleSightFront = new Vector3(post.center.x, post.max.y, post.center.z);
         d.fireInterval = 0.09f;
         d.fireRange = 30f;
+        d.rifleJumpShots = 4;
+        d.rifleJumpHeight = 2.4f;
+        d.rifleStandPivot = Vector3.zero;
+        d.rifleStandPitch = -78f;
+        d.rifleAimAssist = true;
         d.damage = 6;
         d.knockback = 3f;
         d.maxHits = 0;
@@ -287,9 +291,81 @@ public static class WeaponAvatarSceneBuilder
         d.fovPunch = 1.2f;
         d.trailColor = new Color(1f, 0.9f, 0.6f, 0.7f);
         d.upgradeTo = null;
+        AddStockCombo(d);
+        return d;
+    }
+
+    // Pistol (model muzzle -Z, about 0.2 m long), wrapped in a prefab turned to muzzle +Z so it poses like the rifle.
+    // The back of the slide is the melee "blade".
+    static WeaponData Pistol()
+    {
+        var rotation = Quaternion.Euler(0f, 180f, 0f);
+        var model = PistolPrefab(rotation);
+        Bounds b = ModelBounds(model);
+
+        var d = GameSceneBuilder.LoadOrCreate<WeaponData>(AvatarDir + "/Avatar_Pistol.asset");
+        d.displayName = "권총";
+        d.description = "";
+        d.prefab = model;
+        d.heldScale = 7f;
+        d.gripLocalPosition = Vector3.zero;
+        d.gripLocalEuler = Vector3.zero;
+        d.restPosition = new Vector3(0f, -b.min.y * d.heldScale, 0f);
+        d.restEuler = Vector3.zero;
+        d.bladeBase = new Vector3(0f, b.center.y, b.min.z * 0.4f);
+        d.bladeTip = new Vector3(0f, b.center.y, b.min.z);
+        d.hitRadius = 0.3f;
+        d.rifle = true;
+        d.rifleMuzzle = PartBounds(PistolPath, "13_Muzzle_Rim", rotation).center;
+        Bounds rear = PartBounds(PistolPath, "17_Rear_Sight", rotation);
+        Bounds front = PartBounds(PistolPath, "16_Front_Sight", rotation);
+        d.rifleSightRear = rear.center;
+        d.rifleSightFront = new Vector3(front.center.x, front.max.y, front.center.z);
+        d.fireInterval = 0.4f;
+        d.fireRange = 20f;
+        d.rifleJumpShots = 1;
+        d.rifleJumpHeight = 1.2f;
+        Bounds mag = PartBounds(PistolPath, "07_Magazine_Base", rotation);
+        d.rifleStandPivot = new Vector3(mag.center.x, mag.min.y, mag.center.z);
+        d.rifleStandPitch = 0f;
+        d.rifleAimAssist = false;
+        d.damage = 12;
+        d.knockback = 5f;
+        d.maxHits = 0;
+        d.comboResetTime = 0.9f;
+        d.swingMoveScale = 0.4f;
+        d.hitStop = 0.08f;
+        d.shake = 0.25f;
+        d.fovPunch = 1.8f;
+        d.trailColor = new Color(1f, 0.9f, 0.6f, 0.7f);
+        d.upgradeTo = null;
+        AddStockCombo(d);
+        return d;
+    }
+
+    // An empty root holding the pistol model turned by `rotation`.
+    static GameObject PistolPrefab(Quaternion rotation)
+    {
+        var model = AssetDatabase.LoadAssetAtPath<GameObject>(PistolPath);
+        if (model == null) throw new System.Exception("Missing " + PistolPath);
+        var root = new GameObject("LowPoly_Pistol_Forward");
+        try
+        {
+            var child = (GameObject)PrefabUtility.InstantiatePrefab(model, root.transform);
+            child.transform.localRotation = rotation;
+            return PrefabUtility.SaveAsPrefabAsset(root, PistolPrefabPath);
+        }
+        finally
+        {
+            Object.DestroyImmediate(root);
+        }
+    }
+
+    // Right click: a horizontal stock swing, then the stock rises and slams down ahead.
+    static void AddStockCombo(WeaponData d)
+    {
         d.combo.Clear();
         d.altCombo.Clear();
-        // Right click: a horizontal stock swing, then the stock rises and slams down ahead.
         d.altCombo.Add(GameSceneBuilder.Swing(0.08f, 0.10f, 0.20f,
             new Vector3(0f, 0.9f, 0f), new Vector3(0f, 90f, 0f),
             new Vector3(0f, 0.9f, 0f), new Vector3(0f, 270f, 0f), lunge: 0.8f, knockback: 1.6f));
@@ -297,25 +373,32 @@ public static class WeaponAvatarSceneBuilder
             new Vector3(0f, 0.9f, 0f), new Vector3(60f, 180f, 0f),
             new Vector3(0f, 0.6f, 0f), new Vector3(-40f, 180f, 0f),
             lunge: 1f, stagger: 0.55f, damage: 1.6f, knockback: 2f, hitStop: 1.4f, shake: 1.5f, heavy: true, chainAt: 0.7f));
-        return d;
     }
 
-    // Bounds (model space, unit scale) of the first renderer whose object name contains `partName`.
-    static Bounds PartBounds(GameObject prefab, string partName)
+    // Bounds (model space turned by `rotation`, unit scale) of the vertices of the OBJ objects ("o" lines) whose
+    // name contains `partName`. Read from the file because Unity imports the whole OBJ as one mesh; the importer
+    // mirrors x, so this does too.
+    static Bounds PartBounds(string objPath, string partName, Quaternion rotation)
     {
-        var temp = Object.Instantiate(prefab);
-        try
+        bool inPart = false, found = false;
+        Bounds b = default;
+        foreach (string line in System.IO.File.ReadLines(objPath))
         {
-            temp.transform.SetPositionAndRotation(Vector3.zero, Quaternion.identity);
-            temp.transform.localScale = Vector3.one;
-            foreach (var r in temp.GetComponentsInChildren<Renderer>())
-                if (r.name.Contains(partName)) return r.bounds;
-            throw new System.Exception("Missing model part " + partName + " in " + RiflePath);
+            if (line.StartsWith("o "))
+            {
+                inPart = line.Substring(2).Contains(partName);
+                continue;
+            }
+            if (!inPart || !line.StartsWith("v ")) continue;
+            var p = line.Split(new[] { ' ' }, System.StringSplitOptions.RemoveEmptyEntries);
+            var inv = System.Globalization.CultureInfo.InvariantCulture;
+            Vector3 v = rotation * new Vector3(-float.Parse(p[1], inv), float.Parse(p[2], inv), float.Parse(p[3], inv));
+            if (found) b.Encapsulate(v);
+            else b = new Bounds(v, Vector3.zero);
+            found = true;
         }
-        finally
-        {
-            Object.DestroyImmediate(temp);
-        }
+        if (!found) throw new System.Exception("Missing model part " + partName + " in " + objPath);
+        return b;
     }
 
     // Renderer bounds of the model in its own space (unit scale).
