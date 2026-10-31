@@ -137,6 +137,8 @@ public class WeaponData : ScriptableObject
 
     [Header("Rifle (weapon avatar)")]
     public bool rifle;
+    [Tooltip("Hits play full melee feedback (camera shake, FOV punch, heavy sound, big sparks); shots shake the camera by shake.")]
+    public bool rifleHeavyHit;
     public Vector3 rifleMuzzle;
     [Tooltip("Rear aperture centre and front post tip in model space; the aiming view looks along this line.")]
     public Vector3 rifleSightRear;

@@ -190,16 +190,16 @@ public static class WeaponAvatarSceneBuilder
         return d;
     }
 
-    // Same stance as the evolved shears, on a smaller pair (about 1.1 m tall) with shorter lunges.
+    // Same stance as the evolved shears, on a smaller pair (about 1.6 m tall) with shorter lunges.
     static WeaponData NormalShears(WeaponData d)
     {
-        d.heldScale = 7.5f;
-        d.hitRadius = 0.25f;
+        d.heldScale = 4.5f;
+        d.hitRadius = 0.2f;
         d.restPosition = new Vector3(0f, d.bladeTip.magnitude * d.heldScale, 0f);
         d.restEuler = new Vector3(0f, 90f, 180f);
         d.combo.Clear();
         d.altCombo.Clear();
-        AddShearsCombo(d, 50f, 1.1f);
+        AddNormalShearsCombo(d);
         return d;
     }
 
@@ -214,6 +214,36 @@ public static class WeaponAvatarSceneBuilder
         d.altCombo.Clear();
         AddShearsCombo(d, 55f, 1.6f);
         return d;
+    }
+
+    // Original normal shears slashes and snips, centred on the avatar.
+    static void AddNormalShearsCombo(WeaponData d)
+    {
+        d.combo.Add(GameSceneBuilder.Swing(0.08f, 0.09f, 0.18f,
+            new Vector3(0f, 1f, 0f), new Vector3(90f, 100f, 0f),
+            new Vector3(0f, 1f, 0f), new Vector3(90f, -60f, 0f),
+            lunge: 0.7f, jawWindup: 45f, jawStrike: 45f, cutOnContact: true));
+        d.combo.Add(GameSceneBuilder.Swing(0.08f, 0.09f, 0.18f,
+            new Vector3(0f, 1f, 0f), new Vector3(90f, -100f, 0f),
+            new Vector3(0f, 1f, 0f), new Vector3(90f, 60f, 0f),
+            lunge: 0.7f, jawWindup: 45f, jawStrike: 45f, cutOnContact: true));
+        d.combo.Add(GameSceneBuilder.Swing(0.10f, 0.09f, 0.24f,
+            new Vector3(0f, 1.5f, 0f), new Vector3(45f, 90f, 16f),
+            new Vector3(0f, 0.95f, 0.2f), new Vector3(45f, 90f, 115f),
+            lunge: 0.9f, stagger: 0.45f, damage: 1.4f, knockback: 1.4f, hitStop: 1.3f, jawWindup: 45f, jawStrike: 45f, cutOnContact: true));
+
+        d.altCombo.Add(GameSceneBuilder.Swing(0.09f, 0.07f, 0.18f,
+            new Vector3(0f, 1f, 0.2f), new Vector3(90f, 0f, 0f),
+            new Vector3(0f, 1f, 0.2f), new Vector3(90f, 0f, 0f),
+            lunge: 0f, jawWindup: 45f, jawStrike: -30f));
+        d.altCombo.Add(GameSceneBuilder.Swing(0.09f, 0.07f, 0.18f,
+            new Vector3(0f, 1.1f, 0.2f), new Vector3(0f, 90f, 90f),
+            new Vector3(0f, 1.1f, 0.2f), new Vector3(0f, 90f, 90f),
+            lunge: 0f, jawWindup: 45f, jawStrike: -30f));
+        d.altCombo.Add(GameSceneBuilder.Swing(0.10f, 0.07f, 0.24f,
+            new Vector3(0f, 1.05f, 0.2f), new Vector3(45f, 90f, 90f),
+            new Vector3(0f, 1.05f, 0.2f), new Vector3(45f, 90f, 90f),
+            lunge: 0f, stagger: 0.45f, damage: 1.4f, knockback: 1.4f, hitStop: 1.3f, jawWindup: 50f, jawStrike: -30f));
     }
 
     // Left: open-bladed slashes (cut whatever they touch). Right: snips in the horizontal, vertical and diagonal planes.
@@ -281,6 +311,7 @@ public static class WeaponAvatarSceneBuilder
         d.rifleStandPivot = Vector3.zero;
         d.rifleStandPitch = -78f;
         d.rifleAimAssist = true;
+        d.rifleHeavyHit = false;
         d.damage = 6;
         d.knockback = 3f;
         d.maxHits = 0;
@@ -329,6 +360,7 @@ public static class WeaponAvatarSceneBuilder
         d.rifleStandPivot = new Vector3(mag.center.x, mag.min.y, mag.center.z);
         d.rifleStandPitch = 0f;
         d.rifleAimAssist = false;
+        d.rifleHeavyHit = true;
         d.damage = 12;
         d.knockback = 5f;
         d.maxHits = 0;

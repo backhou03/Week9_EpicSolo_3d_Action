@@ -231,6 +231,7 @@ MonoBehaviour:
   sonicSpeed: 18
   sonicMuzzle: {x: 0, y: 0.27, z: 0.4}
   rifle: 1
+  rifleHeavyHit: 0
   rifleMuzzle: {x: 0, y: 0.07557501, z: 0.542}
   rifleSightRear: {x: 0, y: 0.199, z: -0.1095}
   rifleSightFront: {x: 0, y: 0.2455, z: 0.34399998}

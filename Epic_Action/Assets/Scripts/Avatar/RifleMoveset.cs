@@ -29,6 +29,7 @@ public class RifleMoveset : AvatarMoveset
     const float ShotKnockbackScale = 0.15f;
     const float TracerLife = 0.045f;
     const float TracerWidth = 0.025f;
+    static readonly SwingData HeavyShot = new SwingData { heavy = true };
 
     Camera aimCamera;
     Material tracerMaterial;
@@ -152,7 +153,7 @@ public class RifleMoveset : AvatarMoveset
         bool moving = input.wish.sqrMagnitude > 0.01f;
 
         // Jump: flip muzzle down first, then each downward shot pushes the rifle higher.
-        if (input.jump && grounded && !jumpQueued && jumpShotsLeft == 0 && avatar.VerticalVelocity <= 0f)
+        if (input.jump && !jumpQueued && jumpShotsLeft == 0)
         {
             jumpQueued = true;
             jumpFlipTimer = JumpFlipTime;
@@ -264,18 +265,26 @@ public class RifleMoveset : AvatarMoveset
                     point = hit.point,
                     knockback = weapon.knockback * ShotKnockbackScale,
                     stagger = ShotStagger,
+                    heavy = weapon.rifleHeavyHit,
                     tick = false,
                 };
                 enemy.TakeHit(info);
                 avatar.RecordHit(info.damage, enemy.IsDead);
-                // Tick feedback gives automatic fire sparks without a melee-sized hit-stop.
-                if (HitFeedback.Instance != null) HitFeedback.Instance.PlayTick(info);
+                if (HitFeedback.Instance != null)
+                {
+                    if (weapon.rifleHeavyHit) HitFeedback.Instance.PlayHit(info, weapon, HeavyShot, enemy.IsDead);
+                    else HitFeedback.Instance.PlayTick(info);
+                }
             }
         }
         if (HitFeedback.Instance != null) HitFeedback.Instance.PlayNailShot(muzzle, direction, false);
         ShowTracer(muzzle, end);
         avatar.Lunge(Vector3.ProjectOnPlane(-direction, Vector3.up), ShotRecoil, ShotRecoilTime);
-        if (avatar.CameraRig != null) avatar.CameraRig.Shake(0.035f, 0.06f);
+        if (avatar.CameraRig != null)
+        {
+            if (weapon.rifleHeavyHit) avatar.CameraRig.Shake(weapon.shake, 0.1f);
+            else avatar.CameraRig.Shake(0.035f, 0.06f);
+        }
         pitchKick = -ShotPitch;
     }
 
