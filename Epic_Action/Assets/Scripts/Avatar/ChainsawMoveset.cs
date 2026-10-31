@@ -52,7 +52,12 @@ public class ChainsawMoveset : AvatarMoveset
     const float UltimateHop = 0.65f;
     const float UltimateSpinSpeed = 1080f;
     const float UprightPitch = -16f;
-    const float FirstHitFlipDegrees = 360f;
+    // No somersault: it swung the flat of the blade into the target. The spin alone keeps the chain edge leading.
+    const float FirstHitFlipDegrees = 0f;
+    const float SlamAssistRange = 9f;
+    const float SlamAssistAngle = 80f;
+    const float SlamStandOff = 1.1f;
+    const float SlamHomeSpeed = 18f;
     const float FirstHitFlipEnd = 0.65f;
     const float FirstHitWindupLean = -14f;
     // Presentation tuning.
@@ -75,6 +80,22 @@ public class ChainsawMoveset : AvatarMoveset
     const float UltimateWobbleHz = 9f;
     const float UltimateWobbleDegrees = 7f;
     const int UltimateBigBeat = 3;
+    // Hit feel tuning.
+    const float BiteHold = 0.06f;
+    const float FinisherHold = 0.14f;
+    const float LandHold = 0.1f;
+    const float GrindBeatSeconds = 0.07f;
+    const float GrindShake = 0.05f;
+    const float ShudderDistance = 0.018f;
+    const float ShudderDegrees = 3f;
+    const float TickPull = 0.08f;
+    const float TickWobble = 0.05f;
+    const float BitePull = 0.3f;
+    const float DashCarry = 0.7f;
+    const float SpecialCarry = 0.6f;
+    const float UltimatePull = 0.14f;
+    const float PullStandOff = 0.9f;
+    const int BloodEveryTicks = 3;
 
     ChainsawDriver chainsaw;
     ChainsawFx fx;
@@ -97,11 +118,16 @@ public class ChainsawMoveset : AvatarMoveset
     float sparkAcc, driveAcc, landPulse, ultimateBeat;
     int ultimateHits;
     bool wasBuffed;
+    float bitePause, grindBeat, lastDriveHitTime = -10f;
+    float grindSide = 1f;
+    int tickCount;
 
     ThirdPersonCamera Cam => avatar.CameraRig;
     Vector3 Feet => transform.position + Vector3.up * 0.05f;
 
     protected override float SkillCooldown => SkillCooldownSeconds;
+    public override string SkillName => "오버클럭";
+    public override float UltimateTimeRemaining => drive == DriveMode.Ultimate ? Mathf.Max(0f, UltimateSeconds - driveTime) : 0f;
     public override bool Busy => base.Busy || drive != DriveMode.None;
     public override string Status => Time.time < buffUntil ? "OVERCLOCK" : "";
 
@@ -162,7 +188,16 @@ public class ChainsawMoveset : AvatarMoveset
             avatar.Motion.localRotation = Quaternion.identity;
             avatar.Motion.localScale = Vector3.one;
         }
-        if (IsComboHit(2)) avatar.Hop(SlamHeight, true);
+        if (IsComboHit(2))
+        {
+            avatar.Hop(SlamHeight, true);
+            // The head slam picks a wider target and homes on it while airborne.
+            assistTarget = FindAssistTarget(SlamAssistRange, SlamAssistAngle);
+            if (assistTarget != null) swingFacing = YawTo(assistTarget.transform.position);
+        }
+        // Every hit revs differently: a flick, a snap, then a full roar for the slam.
+        fx.Surge(alt ? 0.5f : IsComboHit(2) ? 0.9f : IsComboHit(1) ? 0.35f : 0.55f);
+        tickCount = 0;
     }
 
     protected override void OnStrikeBegan()
@@ -182,6 +217,7 @@ public class ChainsawMoveset : AvatarMoveset
         if (IsComboHit(2))
         {
             Punch(0.1f, 0.15f, 2.5f, 0.2f);
+            HitFeedback.Instance.PlaySwing(true);
             return;
         }
         HitFeedback.Instance.PlaySwing(currentAlt);
@@ -229,8 +265,8 @@ public class ChainsawMoveset : AvatarMoveset
             bufferedAttackTime = -10f;
             StartSwing(bufferedAirAttack);
         }
-        swinger.Holding = swinging && weapon.sliceDelay > 0f && swinger.Phase == SwingPhase.Strike
-            && hitbox.Touching;
+        swinger.Holding = swinging && swinger.Phase == SwingPhase.Strike
+            && (bitePause > 0f || (weapon.sliceDelay > 0f && hitbox.Touching));
     }
 
     // A click grinds like a hold: even a fast spin must saw for the full delay.
@@ -241,6 +277,85 @@ public class ChainsawMoveset : AvatarMoveset
         chainsaw.NotifyContact();
         swinger.Holding = swinging && weapon.sliceDelay > 0f && swinger.Phase == SwingPhase.Strike;
         if (tick && !enemy.IsDead) avatar.Lunge(direction, ChainsawPush, weapon.tickInterval);
+        if (tick) GrindTickFx(enemy, direction);
+        else BiteFx(enemy, direction);
+    }
+
+    // The teeth catch: a short pose hold, then each hit throws sparks and shoves the enemy its own way.
+    void BiteFx(Enemy enemy, Vector3 direction)
+    {
+        tickCount = 0;
+        grindBeat = 0f;
+        Vector3 point = enemy.Center;
+        Vector3 sweep = tipVelocity.sqrMagnitude > 1f ? tipVelocity.normalized : transform.right;
+        bool finisher = IsComboHit(2);
+        bitePause = Mathf.Max(bitePause, finisher ? FinisherHold : BiteHold);
+        fx.Surge(finisher ? 1f : 0.6f);
+        if (finisher)
+        {
+            // Last hit: a crushing shockwave and a roar.
+            Punch(0.55f, 0.3f, 7f, 0.3f);
+            fx.Ring(point, 44, 10f);
+            fx.Sparks(point, direction + Vector3.up * 0.6f, 36, 12f, 0.7f, 0.07f, 0.45f);
+            fx.Smear(point, 2.2f, 0.3f, new Color(1f, 0.8f, 0.45f, 0.6f));
+            fx.Play(ProceduralSfx.HitHeavy, 0.9f, 0.7f);
+            fx.Play(ProceduralSfx.Shatter, 0.5f, 1.1f);
+            if (weapon.bloody) HitFeedback.Instance.PlayBlood(point, direction, 1.4f);
+            return;
+        }
+        if (currentAlt)
+        {
+            // Air spin sucks the enemy into the blade and flings sparks out all round.
+            Punch(0.16f, 0.2f, 3f, 0.2f);
+            fx.Ring(point, 24, 7f);
+            fx.Play(ProceduralSfx.Hit, 0.6f, 1.15f);
+            Drag(enemy, transform.position - enemy.transform.position, BitePull);
+            return;
+        }
+        if (IsComboHit(0))
+        {
+            // Kick spin: the cut tears upward, the enemy is hauled in toward the rising blade.
+            Punch(0.2f, 0.2f, 2.5f, 0.2f);
+            fx.Sparks(point, direction * 0.5f + Vector3.up, 24, 9f, 0.5f);
+            fx.Play(ProceduralSfx.Hit, 0.7f, 1.0f);
+            Drag(enemy, transform.position - enemy.transform.position, BitePull);
+        }
+        else
+        {
+            // Left spin: a fast tearing slash; sparks and enemy are whipped along the sweep.
+            Punch(0.14f, 0.14f, -2.5f, 0.15f);
+            fx.Sparks(point, sweep + Vector3.up * 0.3f, 22, 11f, 0.35f);
+            fx.Play(ProceduralSfx.Hit, 0.65f, 1.3f);
+            Drag(enemy, sweep, BitePull * 1.2f);
+        }
+    }
+
+    // Sawing rhythm: alternating sparks left and right, wobble, and periodic gore.
+    void GrindTickFx(Enemy enemy, Vector3 direction)
+    {
+        grindSide = -grindSide;
+        tickCount++;
+        Vector3 toPlayer = transform.position - enemy.transform.position;
+        Drag(enemy, toPlayer, TickPull);
+        Drag(enemy, transform.right * grindSide, TickWobble);
+        Vector3 spray = -direction * 0.6f + transform.right * grindSide * 0.6f + Vector3.up * 0.7f;
+        fx.Sparks(enemy.Center, spray, 6, 8f, 0.4f);
+        if (tickCount % BloodEveryTicks == 0 && weapon.bloody)
+            HitFeedback.Instance.PlayBlood(enemy.Center, spray, 0.35f);
+    }
+
+    // Shove an enemy along the ground without touching its own AI; stops short of the player.
+    void Drag(Enemy enemy, Vector3 direction, float distance)
+    {
+        if (enemy == null || enemy.IsDead) return;
+        direction.y = 0f;
+        if (direction.sqrMagnitude < 0.01f) return;
+        Vector3 away = enemy.transform.position - transform.position;
+        away.y = 0f;
+        // Pulling toward the player must not carry it through the player.
+        if (Vector3.Dot(direction, away) < 0f && away.magnitude < enemy.Radius + PullStandOff) return;
+        var body = enemy.GetComponent<CharacterController>();
+        if (body != null && body.enabled) body.Move(direction.normalized * distance);
     }
 
     protected override void OnSkill()
@@ -251,6 +366,7 @@ public class ChainsawMoveset : AvatarMoveset
         HitFeedback.Instance.PlaySwing(true);
         fx.Ring(transform.position + Vector3.up * 0.5f, 40, 7f);
         fx.Sparks(fx.Tip, Vector3.up, 30, 8f, 0.8f);
+        fx.Surge(1.3f);
     }
 
     protected override void OnDash(Vector3 dir)
@@ -299,6 +415,8 @@ public class ChainsawMoveset : AvatarMoveset
         ultimateBeat = 0f;
         ultimateHits = 0;
         HitFeedback.Instance.PlaySwing(true);
+        lastDriveHitTime = -10f;
+        fx.Surge(mode == DriveMode.Ultimate ? 1.2f : mode == DriveMode.Special ? 0.9f : 0.7f);
         if (mode == DriveMode.Dash)
         {
             Punch(0.12f, 0.15f, -6f, 0.2f);
@@ -324,13 +442,23 @@ public class ChainsawMoveset : AvatarMoveset
             : drive == DriveMode.Special ? SpecialSeconds : UltimateSeconds;
         if (driveTime >= duration)
         {
-            if (drive == DriveMode.Dash) fx.Sparks(Feet, driveDirection, 12, 6f, 0.7f);
+            if (drive == DriveMode.Dash)
+            {
+                fx.Sparks(Feet, driveDirection, 12, 6f, 0.7f);
+                // Brake: the FOV snaps back as the roll ends.
+                Punch(0f, 0f, 3f, 0.15f);
+            }
             else if (drive == DriveMode.Ultimate)
             {
-                // Grinder winds down with a final burst.
-                Punch(0.3f, 0.25f, 4f, 0.3f);
-                fx.Ring(Feet, 40, 8f);
-                fx.Sparks(fx.Tip, driveDirection, 24, 9f, 0.8f);
+                // Grinder winds down with a final burst, bigger the more it chewed through.
+                float chewed = Mathf.Clamp01(ultimateHits / 12f);
+                Punch(0.35f + 0.3f * chewed, 0.3f, 5f + 3f * chewed, 0.3f);
+                fx.Ring(Feet, 50, 9f);
+                fx.Sparks(fx.Tip, driveDirection + Vector3.up * 0.4f, 30, 10f, 0.8f, 0.06f, 0.4f);
+                fx.Smear(Feet + Vector3.up * 0.3f, 2.6f, 0.35f, new Color(1f, 0.75f, 0.4f, 0.55f));
+                fx.Play(ProceduralSfx.HitHeavy, 0.85f, 0.75f);
+                if (ultimateHits > 0) fx.Play(ProceduralSfx.Shatter, 0.5f, 1.05f);
+                fx.Surge(1f);
             }
             drive = DriveMode.None;
             avatar.PlanarVelocity = Vector3.zero;
@@ -382,6 +510,7 @@ public class ChainsawMoveset : AvatarMoveset
             // Floor friction sparks plus a fading glow afterimage along the path.
             int n = ChainsawFx.Steps(ref driveAcc, DashSparkRate, dt);
             if (n > 0) fx.Sparks(Feet, -driveDirection + Vector3.up * 0.3f, n, 7f, 0.6f);
+            fx.Grind(0.8f, false);
             fx.Smear(transform.position + Vector3.up * 0.8f, 1.1f, 0.22f, new Color(1f, 0.7f, 0.3f, 0.5f));
         }
         else if (drive == DriveMode.Special)
@@ -405,8 +534,10 @@ public class ChainsawMoveset : AvatarMoveset
             if (ultimateBeat >= UltimateTick)
             {
                 ultimateBeat -= UltimateTick;
-                Punch(0.06f, 0.12f, -2.2f, 0.2f);
+                // Rumble builds as the grinder chews through a crowd.
+                Punch(0.06f + 0.012f * Mathf.Min(ultimateHits, 10), 0.12f, -2.2f, 0.2f);
             }
+            fx.Grind(1f, Time.time - lastDriveHitTime < 0.3f);
         }
     }
 
@@ -426,8 +557,11 @@ public class ChainsawMoveset : AvatarMoveset
         }
         else if (wasBuffed) fx.Sparks(tip, Vector3.up, 16, 3f, 1f, 0.04f, 0.3f);
         wasBuffed = buffed;
+        if (buffed) fx.Grind(0.18f, false);
 
+        bitePause = Mathf.Max(0f, bitePause - dt);
         if (!swinging || swinger.Phase != SwingPhase.Strike) return;
+        if (hitbox.Touching) GrindFeel(dt);
         // Sparks fly along the blade path; sawing into an enemy or the floor throws many more.
         float rate = SwingSparkRate * (hitbox.Touching ? 3f : 1f) * (currentSwing.heavy ? 1.5f : 1f);
         if (tip.y < 0.35f) rate += GroundSparkRate;
@@ -435,6 +569,16 @@ public class ChainsawMoveset : AvatarMoveset
         if (count > 0)
             fx.Sparks(tip, (tipVelocity.sqrMagnitude > 1f ? tipVelocity.normalized : transform.forward) + Vector3.up * 0.4f,
                 count, 6f + tipVelocity.magnitude * 0.2f, 0.5f);
+    }
+
+    // Continuous grinding: the camera shivers on a rhythm and the engine layer revs up under load.
+    void GrindFeel(float dt)
+    {
+        fx.Grind(1f);
+        grindBeat += dt;
+        if (grindBeat < GrindBeatSeconds) return;
+        grindBeat -= GrindBeatSeconds;
+        Punch(GrindShake * (grindSide > 0f ? 1.6f : 1f), 0.08f, 0f, 0f);
     }
 
     // Sweep the travelled path after CharacterController movement, including fast dash frames.
@@ -486,9 +630,24 @@ public class ChainsawMoveset : AvatarMoveset
         enemy.TakeHit(info);
         avatar.RecordHit(info.damage, enemy.IsDead);
         chainsaw.NotifyContact();
+        lastDriveHitTime = Time.time;
         if (enemy.IsDead && weapon.sliceOnKill) HitFeedback.Instance.PlaySlice(info.point, info.direction, weapon.bloody);
         else HitFeedback.Instance.PlayTick(info);
         DriveHitFx(info, special, tick);
+        DriveShove(enemy, info.direction, special, tick);
+    }
+
+    // Dash carries the enemy along the path, special flings it along the sweep, ultimate drags it under the saw.
+    void DriveShove(Enemy enemy, Vector3 direction, bool special, bool tick)
+    {
+        if (special) Drag(enemy, Quaternion.AngleAxis(90f, Vector3.up) * direction, SpecialCarry);
+        else if (tick)
+        {
+            Vector3 target = transform.position + driveDirection * (enemy.Radius + PullStandOff + 0.4f);
+            Drag(enemy, target - enemy.transform.position, UltimatePull);
+            Drag(enemy, transform.right * grindSide, TickWobble);
+        }
+        else Drag(enemy, driveDirection, DashCarry);
     }
 
     void DriveHitFx(HitInfo info, bool special, bool tick)
@@ -497,13 +656,20 @@ public class ChainsawMoveset : AvatarMoveset
         {
             // Dash and special land as one solid hit.
             Punch(special ? 0.3f : 0.22f, 0.18f, special ? 3f : 2f, 0.15f);
-            fx.Sparks(info.point, info.direction + Vector3.up * 0.3f, special ? 30 : 20, 10f, 0.7f);
+            // Dash sparks stream back along the path; the special's fan out along the sweep.
+            Vector3 dir = special ? info.direction + Vector3.up * 0.3f : driveDirection + Vector3.up * 0.4f;
+            fx.Sparks(info.point, dir, special ? 30 : 20, 10f, special ? 0.7f : 0.45f);
+            fx.Play(special ? ProceduralSfx.HitHeavy : ProceduralSfx.Hit, special ? 0.8f : 0.6f, special ? 0.9f : 1.25f);
+            if (weapon.bloody) HitFeedback.Instance.PlayBlood(info.point, dir, special ? 0.9f : 0.6f);
             return;
         }
-        // Grinding rhythm: every few ticks a heavier chunk rips off.
-        fx.Sparks(info.point, info.direction + Vector3.up * 0.5f, 8, 8f, 0.9f);
+        // Grinding rhythm: sparks alternate sides, a tick pitches up with the combo, every few ticks a heavier chunk rips off.
+        fx.Sparks(info.point, info.direction * 0.5f + transform.right * grindSide + Vector3.up * 0.5f, 8, 8f, 0.6f);
+        fx.Play(ProceduralSfx.Hit, 0.25f, 0.95f + 0.05f * Mathf.Min(ultimateHits, 12));
+        grindSide = -grindSide;
         if (++ultimateHits % UltimateBigBeat != 0) return;
         Punch(0.2f, 0.16f, 2f, 0.1f);
+        fx.Play(ProceduralSfx.HitHeavy, 0.4f, 1.1f);
         fx.Sparks(info.point, info.direction + Vector3.up * 0.4f, 24, 11f, 0.9f, 0.06f, 0.4f);
         if (weapon.bloody) HitFeedback.Instance.PlayBlood(info.point, info.direction, 0.5f);
     }
@@ -521,6 +687,9 @@ public class ChainsawMoveset : AvatarMoveset
             slamDriving = false;
             Punch(weapon.shake * SlamLandShake, 0.3f, SlamLandFov, 0.25f);
             landPulse = LandPulseSeconds;
+            bitePause = Mathf.Max(bitePause, LandHold);
+            fx.Play(ProceduralSfx.HitHeavy, 0.9f, 0.6f);
+            fx.Play(ProceduralSfx.Shatter, 0.4f, 0.9f);
             fx.Ring(Feet, 40, 9f);
             fx.Sparks(Feet + Vector3.up * 0.1f, Vector3.up, 22, 8f, 0.7f);
             fx.Smear(Feet + Vector3.up * 0.2f, 2.2f, 0.35f, new Color(0.8f, 0.7f, 0.55f, 0.45f));
@@ -534,6 +703,7 @@ public class ChainsawMoveset : AvatarMoveset
         float scale = swinging ? weapon.swingMoveScale : 1f;
         Accelerate(input.wish * (MoveSpeed * MoveSpeedScale * scale),
             input.wish.sqrMagnitude > 0.01f ? Acceleration : Braking, dt);
+        SlamHoming(dt);
         float speed = avatar.PlanarVelocity.magnitude;
         float groundSpeed = avatar.IsGrounded ? speed : 0f;
         chainsaw.Rev = swinging ? 1f : Mathf.Lerp(0.3f, 1f, groundSpeed / MoveSpeed);
@@ -551,6 +721,8 @@ public class ChainsawMoveset : AvatarMoveset
             else if (IsComboHit(1)) LeftSpinMotion(dt);
             else if (IsComboHit(2)) SlamMotion(dt);
             else RelaxMotion(dt);
+            // The blade shudders in the pose while buried.
+            if (swinger.Holding) Shudder();
             return;
         }
 
@@ -573,6 +745,26 @@ public class ChainsawMoveset : AvatarMoveset
             Quaternion.AngleAxis(UprightPitch - pitchKick, pitchAxis)
                 * Quaternion.AngleAxis(lean, restInverse * Vector3.forward)
                 * Quaternion.Euler(Random.insideUnitSphere * (JitterDegrees * shake)), Vector3.one, 60f, dt);
+    }
+
+    // Keeps the slam's turn and flight on the target so the plunge lands on it instead of whiffing past.
+    void SlamHoming(float dt)
+    {
+        if (!swinging || !IsComboHit(2) || assistTarget == null || assistTarget.IsDead || avatar.IsGrounded && swinger.Phase != SwingPhase.Windup) return;
+        if (swinger.Phase == SwingPhase.Recovery) return;
+        swingFacing = YawTo(assistTarget.transform.position);
+        Vector3 to = assistTarget.transform.position - transform.position;
+        to.y = 0f;
+        float remaining = swinger.Phase == SwingPhase.Windup ? (1f - swinger.PhaseProgress) * currentSwing.windup + 0.12f : 0.1f;
+        float distance = Mathf.Max(0f, to.magnitude - SlamStandOff);
+        float speed = Mathf.Min(SlamHomeSpeed, distance / remaining);
+        avatar.PlanarVelocity = Vector3.MoveTowards(avatar.PlanarVelocity, to.normalized * speed, 200f * dt);
+    }
+
+    void Shudder()
+    {
+        avatar.Motion.localPosition += Random.insideUnitSphere * ShudderDistance;
+        avatar.Motion.localRotation *= Quaternion.Euler(Random.insideUnitSphere * ShudderDegrees);
     }
 
     // First ground hit: sink and lean back during the windup, flip upright while rising, then spin the cut.

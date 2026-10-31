@@ -47,6 +47,35 @@ public class WeaponAvatar : MonoBehaviour
     public Transform Motion => motion;
     public WeaponData[] Slots => slots;
     public WeaponData[] ReserveWeapons => reserveWeapons;
+    readonly System.Collections.Generic.List<WeaponData> ownedWeapons = new System.Collections.Generic.List<WeaponData>();
+    public System.Collections.Generic.IReadOnlyList<WeaponData> OwnedWeapons => ownedWeapons;
+    public int ActiveSlot => slot;
+    public bool InteractionOpen { get; set; }
+    public event System.Action<WeaponData> WeaponAcquired;
+    public bool OwnsWeapon(WeaponData data) => data != null && ownedWeapons.Contains(data);
+    public void AcquireWeapon(WeaponData data)
+    {
+        if (data == null || OwnsWeapon(data)) return;
+        ownedWeapons.Add(data);
+        WeaponAcquired?.Invoke(data);
+    }
+    public void RestoreHealth()
+    {
+        if (!IsDead) Hp = MaxHp;
+    }
+    public void SetCheckpoint(Vector3 position, Quaternion rotation)
+    {
+        spawnPosition = position;
+        spawnRotation = rotation;
+    }
+    public bool ReplaceCurrentWeapon(WeaponData data)
+    {
+        if (IsDead || !OwnsWeapon(data) || System.Array.IndexOf(slots, data) >= 0) return false;
+        slots[slot] = data;
+        Equip(data);
+        moveset.ActivateSpecial();
+        return true;
+    }
     public float Gravity => gravity;
     public bool IsGrounded => cc.isGrounded;
     public bool Invulnerable => Time.time < invulnerableUntil;
@@ -77,6 +106,7 @@ public class WeaponAvatar : MonoBehaviour
         cc = GetComponent<CharacterController>();
         spawnPosition = transform.position;
         spawnRotation = transform.rotation;
+        foreach (var carried in slots) AcquireWeapon(carried);
     }
 
     public void TakeDamage(int damage, Vector3 from)
@@ -142,6 +172,7 @@ public class WeaponAvatar : MonoBehaviour
             if (Time.time >= respawnAt) Respawn();
             return;
         }
+        if (InteractionOpen) return;
         ReadWeaponKeys();
         if (moveset == null) return;
 
@@ -185,16 +216,6 @@ public class WeaponAvatar : MonoBehaviour
             Equip(slots[i]);
             moveset.ActivateSpecial();
             return;
-        }
-        // The reserve pool is a queue; the outgoing weapon joins its tail.
-        if (keyboard[Key.F].wasPressedThisFrame && reserveWeapons.Length > 0 && reserveWeapons[0] != null)
-        {
-            WeaponData previous = slots[slot];
-            slots[slot] = reserveWeapons[0];
-            for (int i = 1; i < reserveWeapons.Length; i++) reserveWeapons[i - 1] = reserveWeapons[i];
-            reserveWeapons[reserveWeapons.Length - 1] = previous;
-            Equip(slots[slot]);
-            moveset.ActivateSpecial();
         }
     }
 

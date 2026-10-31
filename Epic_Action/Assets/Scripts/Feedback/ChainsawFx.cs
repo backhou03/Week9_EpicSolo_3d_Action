@@ -11,6 +11,9 @@ public class ChainsawFx : MonoBehaviour
     Material sparkMaterial, smearMaterial;
     Texture2D softTexture;
     ParticleSystem sparks, smear;
+    AudioSource voice, grindVoice;
+    float grindTarget, grindLevel, grindTime, surge;
+    bool grindLoaded;
 
     public Vector3 Tip => blade.TransformPoint(tipLocal);
 
@@ -23,6 +26,53 @@ public class ChainsawFx : MonoBehaviour
         smearMaterial = new Material(Shader.Find("Sprites/Default")) { mainTexture = softTexture };
         sparks = Build("FX_ChainsawSparks", sparkMaterial, true, 0.8f);
         smear = Build("FX_ChainsawSmear", smearMaterial, false, 0f);
+        BuildVoices();
+    }
+
+    void BuildVoices()
+    {
+        var go = new GameObject("FX_ChainsawVoice");
+        go.transform.SetParent(transform, false);
+        voice = go.AddComponent<AudioSource>();
+        voice.spatialBlend = 0f;
+        // Second engine layer that revs up while the blade is loaded.
+        grindVoice = go.AddComponent<AudioSource>();
+        grindVoice.spatialBlend = 0f;
+        grindVoice.loop = true;
+        grindVoice.clip = ProceduralSfx.ChainsawLoop;
+        grindVoice.volume = 0f;
+        grindVoice.Play();
+    }
+
+    // Ask for the grind layer this frame; a loaded blade keeps winding the pitch up.
+    public void Grind(float intensity, bool loaded = true)
+    {
+        grindTarget = Mathf.Max(grindTarget, intensity);
+        grindLoaded |= loaded;
+    }
+
+    // A rev flare that decays: ignition, dash launch, big bites.
+    public void Surge(float amount) => surge = Mathf.Max(surge, amount);
+
+    public void Play(AudioClip clip, float volume, float pitch)
+    {
+        if (voice == null || clip == null) return;
+        voice.pitch = pitch;
+        voice.PlayOneShot(clip, volume);
+    }
+
+    void Update()
+    {
+        if (grindVoice == null) return;
+        float dt = Time.unscaledDeltaTime;
+        grindLevel = Mathf.MoveTowards(grindLevel, grindTarget, (grindTarget > grindLevel ? 9f : 4f) * dt);
+        grindTime = grindLoaded ? grindTime + dt : Mathf.Max(0f, grindTime - dt * 2f);
+        surge = Mathf.MoveTowards(surge, 0f, 2.5f * dt);
+        float strain = Mathf.Clamp01(grindTime / 1.2f);
+        grindVoice.volume = 0.34f * Mathf.Max(grindLevel, Mathf.Clamp01(surge));
+        grindVoice.pitch = 1.05f + 0.5f * strain + 0.55f * surge + 0.05f * Mathf.Sin(Time.unscaledTime * 41f) * grindLevel;
+        grindTarget = 0f;
+        grindLoaded = false;
     }
 
     void OnDestroy()
@@ -31,6 +81,7 @@ public class ChainsawFx : MonoBehaviour
         if (smear != null) Destroy(smear.gameObject);
         if (sparkMaterial != null) Destroy(sparkMaterial);
         if (smearMaterial != null) Destroy(smearMaterial);
+        if (voice != null) Destroy(voice.gameObject);
         if (softTexture != null) Destroy(softTexture);
     }
 

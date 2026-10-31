@@ -19,6 +19,7 @@ public class Enemy : MonoBehaviour
     [SerializeField] float knockbackDrag = 7f;
     [SerializeField] float respawnDelay = 3f;
     [SerializeField] bool respawn = true;
+    [SerializeField] bool healthOnly;
     [SerializeField] Transform visual;
     [SerializeField] Renderer bodyRenderer;
     [SerializeField] Material cutMaterial;
@@ -52,6 +53,9 @@ public class Enemy : MonoBehaviour
     float verticalVelocity;
 
     public bool IsDead { get; private set; }
+    public int Hp => Mathf.Max(0, hp);
+    public int MaxHp => maxHp;
+    public bool Invulnerable { get; set; }
     public Vector3 Center => cc.bounds.center;
     public float Radius => cc.radius;
     public bool IsImpaired => staggerTimer > 0f || knockbackVelocity.sqrMagnitude > 0.25f || nailPinOwner != null;
@@ -99,7 +103,7 @@ public class Enemy : MonoBehaviour
 
     public bool TryPinForNail(Transform owner)
     {
-        if (IsDead || (nailPinOwner != null && nailPinOwner != owner)) return false;
+        if (healthOnly || IsDead || (nailPinOwner != null && nailPinOwner != owner)) return false;
         nailPinOwner = owner;
         knockbackVelocity = Vector3.zero;
         verticalVelocity = 0f;
@@ -114,6 +118,11 @@ public class Enemy : MonoBehaviour
     public void TakeContactNail(Vector3 point, Vector3 direction, bool primer)
     {
         if (IsDead) return;
+        if (healthOnly)
+        {
+            TakeHit(new HitInfo { damage = primer ? 0 : 12, point = point, direction = direction, tick = true });
+            return;
+        }
         if (!primer) NailHits++;
         TakeHit(new HitInfo
         {
@@ -135,6 +144,11 @@ public class Enemy : MonoBehaviour
     public void TakePiercingNail(Vector3 point, Vector3 direction, float radius)
     {
         if (IsDead) return;
+        if (healthOnly)
+        {
+            TakeHit(new HitInfo { damage = 30, point = point, direction = direction, heavy = true });
+            return;
+        }
         visual.localScale = visualBaseScale;
         visual.localPosition = visualBasePosition;
         visual.localRotation = Quaternion.identity;
@@ -171,7 +185,13 @@ public class Enemy : MonoBehaviour
 
     public void TakeHit(HitInfo info)
     {
-        if (IsDead) return;
+        if (IsDead || Invulnerable) return;
+        // Bosses keep normal weapon damage, but never the instant kill, pin or hit-lock rules.
+        if (healthOnly)
+        {
+            info.crush = info.slice = info.sliceNow = false;
+            info.sliceDelay = info.sliceRadius = info.stagger = info.knockback = 0f;
+        }
         HitReceived?.Invoke(info);
         if (info.crush)
         {
@@ -200,7 +220,7 @@ public class Enemy : MonoBehaviour
         {
             squash = info.heavy ? 1.4f : 1f;
             knockbackVelocity = info.direction * knock;
-            verticalVelocity = killed ? 6f : (info.heavy ? 4f : 2.5f);
+            verticalVelocity = healthOnly ? 0f : killed ? 6f : (info.heavy ? 4f : 2.5f);
         }
 
         bool cutNow = info.slice && info.sliceNow;

@@ -14,7 +14,7 @@ public class HammerMoveset : AvatarMoveset
     const float SlamDownSpeed = 20f;
     const float SpinDegreesPerSecond = 720f;
     const int MaxDamageSpins = 7;
-    const float DamagePerSpin = 0.4f;
+    const float DamagePerSpin = 0.55f;
     const float RangePerSpin = 0.35f;
     const float ChargeHopHeight = 1.8f;
     const float AttackBuffer = 0.4f;
@@ -31,7 +31,7 @@ public class HammerMoveset : AvatarMoveset
     const float UltimateScale = 2.3f;
     const float UltimateRange = 5.5f;
     const float UltimateTickInterval = 0.2f;
-    const float UltimateTickDamage = 0.45f;
+    const float UltimateTickDamage = 0.65f;
     const float UltimateSpinSpeed = 540f;
     // Head-pivot locomotion: the head thumps down and stays put while the handle vaults over it, then the whole
     // hammer whips through the air (flat apex) and lands head-first one beat later. Travel comes in bursts.
@@ -47,12 +47,12 @@ public class HammerMoveset : AvatarMoveset
     // Stiff enough that the head stays on its pivot while the pose spins.
     const float SpinPoseSharpness = 200f;
     const float AttackTurnSpeed = 2400f;
-    // Charge and ultimate orbit the head: the handle leans out and circles it, and the ultimate hops in beats.
+    // Charge orbits the head; ultimate orbits the handle and hops in beats.
     const float ChargeLean = 70f;
     const float UltimateBeat = 0.6f;
     const float UltimatePlant = 0.2f;
     const float UltimateHopHeight = 0.7f;
-    const float UltimateLeanLand = 50f;
+    const float UltimateLeanLand = 90f;
     const float UltimateLeanAir = 80f;
     static readonly Vector3 SpinTrailBase = new Vector3(0f, 0.15f, 0f);
     static readonly Vector3 SpinTrailTip = new Vector3(0f, 0.95f, 0f);
@@ -61,6 +61,7 @@ public class HammerMoveset : AvatarMoveset
     const float LaunchForward = 0.25f;
     const float HitStagger = 0.6f;
     const float DashPoseDuration = 0.18f;
+    const float JumpPoseDuration = 0.35f;
     const float SplashRange = 3f;
     const float SplashDamage = 0.35f;
     internal const float CrushDuration = 0.28f;
@@ -69,12 +70,26 @@ public class HammerMoveset : AvatarMoveset
     internal const float CrushBurstHeight = 0.2f;
 
     // Feel only: the cock-back takes the first part of windup and the fall lands exactly when the hit resolves.
-    const float CockFraction = 0.4f;
-    const float UppercutImpactU = 0.75f;
+    // Per combo step: scoop / overhead slam / (charge slam, pose unused). Raise share of windup, pose fraction reached at impact,
+    // apex hang (share of recovery spent frozen at the end pose), body lean back / forward.
+    static readonly float[] CockFraction = { 0.55f, 0.65f, 0.4f };
+    static readonly float[] ImpactU = { 0.2f, 1f, 1f };
+    static readonly float[] RecoveryHold = { 0.5f, 0.2f, 0f };
+    static readonly float[] WindupTilt = { 16f, -26f, -10f };
+    static readonly float[] ImpactOvershoot = { -8f, 14f, 6f };
     const float FollowTiltTime = 0.12f;
     const float SwingSmearSize = 1f;
-    const float WindupTilt = 10f;
-    const float ImpactOvershoot = 6f;
+    // Leap before the charged slam: rise (hammer hoisted overhead), then drop.
+    const float LeapDuration = 0.2f;
+    const float LeapHeight = 2.2f;
+    const float LeapHeightPerSpin = 0.2f;
+    const float LeapPitch = -35f;
+    const float SpinLeanGrowth = 18f;
+    const float SpinVisualBoost = 0.6f;
+    // Move poses (Motion offsets): jump hoists the hammer up and stretches, dash trails it low behind, rush levels it like a ram.
+    const float JumpPitch = -25f;
+    const float DashPitch = -80f;
+    const float RushPitch = 88f;
     const float ImpactReach = 1.7f;
     const float ImpactRadius = 2.2f;
     const float ShakeBase = 0.28f;
@@ -87,10 +102,11 @@ public class HammerMoveset : AvatarMoveset
     const float TrailBuffRed = 0.4f;
 
     int comboStep, activeStep;
+    float leapUntil, spinVisual, jumpUntil;
     float attackTime, bufferedAt = -10f, lastAttackEnd = -10f;
     float spinDegrees, hopPhase, squash, buffUntil, ultimateUntil, nextUltimateHit;
     float rushUntil, specialUntil, dashUntil;
-    bool charging, slamming, strikeApplied, poseHeld;
+    bool charging, slamming, leaping, strikeApplied, poseHeld;
     float holdTime;
     float ultimatePhase, ultimateYaw;
     bool hopMoving, spinTrail;
@@ -107,7 +123,9 @@ public class HammerMoveset : AvatarMoveset
     Color trailNow;
 
     protected override float SkillCooldown => SkillRecharge;
-    public override bool Busy => swinging || charging || slamming || Time.time < ultimateUntil || Time.time < rushUntil;
+    public override string SkillName => "돌진 강화";
+    public override float UltimateTimeRemaining => Mathf.Max(0f, ultimateUntil - Time.time);
+    public override bool Busy => swinging || charging || leaping || slamming || Time.time < ultimateUntil || Time.time < rushUntil;
     public override float ChargeProgress => charging ? Mathf.Clamp01(spinDegrees / (360f * MaxDamageSpins)) : 0f;
     public override string Status => Time.time < ultimateUntil ? $"거대 회전 {ultimateUntil - Time.time:F1}초"
         : charging ? $"회전 {Mathf.FloorToInt(spinDegrees / 360f)}회 · 위력 {Mathf.Min(MaxDamageSpins, Mathf.FloorToInt(spinDegrees / 360f))}/{MaxDamageSpins} · 놓으면 내려찍기"
@@ -155,7 +173,7 @@ public class HammerMoveset : AvatarMoveset
     protected override void CancelAttack()
     {
         base.CancelAttack();
-        charging = slamming = false;
+        charging = slamming = leaping = false;
         comboStep = 0;
         bufferedAt = -10f;
     }
@@ -169,7 +187,20 @@ public class HammerMoveset : AvatarMoveset
             spinDegrees += SpinDegreesPerSecond * dt * AttackSpeed;
             if (!input.attackHeld)
             {
+                // Release: leap with the hammer hoisted overhead, then drop it.
                 charging = false;
+                leaping = true;
+                leapUntil = Time.time + LeapDuration;
+                avatar.Hop(LeapHeight + LeapHeightPerSpin * Mathf.Min(MaxDamageSpins, Mathf.FloorToInt(spinDegrees / 360f)), true);
+                LeapFx();
+            }
+            return;
+        }
+        if (leaping)
+        {
+            if (Time.time >= leapUntil)
+            {
+                leaping = false;
                 slamming = true;
                 avatar.VerticalVelocity = -SlamDownSpeed;
                 DiveFx();
@@ -225,7 +256,7 @@ public class HammerMoveset : AvatarMoveset
         strikeApplied = false;
         if (activeStep == 2)
         {
-            spinDegrees = 0f;
+            spinDegrees = spinVisual = 0f;
             lastSpinCount = 0;
             charging = true;
             avatar.Hop(ChargeHopHeight, true);
@@ -233,7 +264,16 @@ public class HammerMoveset : AvatarMoveset
             fx.Impact(Ground(transform.position), 1.5f, 0.3f);
             punch += 0.1f;
         }
-        else swinging = true;
+        else
+        {
+            swinging = true;
+            if (activeStep == 1)
+            {
+                // Telegraph: a faint ring grows to the slam radius and arrives with the hit.
+                fx.Ring(Ground(transform.position + Facing * ImpactReach), ImpactRadius * 1.15f, currentSwing.windup / AttackSpeed,
+                    new Color(1f, 0.9f, 0.7f, 0.3f));
+            }
+        }
         HitFeedback.Instance?.PlaySwing(true);
     }
 
@@ -263,49 +303,71 @@ public class HammerMoveset : AvatarMoveset
         Vector3 ground = Ground(transform.position + forward * ImpactReach);
         if (activeStep == 0)
         {
-            // Uppercut: a rising column instead of a wide splash.
-            GroundImpact(ground, ImpactRadius * 0.8f, 0.55f, hits);
-            fx.Sparks(ground, Vector3.up + forward * 0.3f, 26, 10f, 0.35f, 0.08f, 0.55f);
-            fx.DustStream(ground, Vector3.up, 10, 4f, 0.8f);
-            fx.Smear(ground + Vector3.up * 1.2f, 1.6f, 0.2f, new Color(1f, 0.85f, 0.5f, 0.4f));
+            // Uppercut: a rising pillar instead of a wide splash, with a light camera kick.
+            GroundImpact(ground, ImpactRadius * 0.7f, 0.5f, hits);
+            fx.Column(ground, 11f, 14, 0.35f, new Color(1f, 0.95f, 0.75f, 0.6f));
+            fx.Sparks(ground, Vector3.up + forward * 0.3f, 26, 12f, 0.3f, 0.08f, 0.6f);
+            fx.Smear(ground + Vector3.up * 1.4f, 1.8f, 0.22f, new Color(1f, 0.95f, 0.7f, 0.45f));
         }
         else
         {
-            GroundImpact(ground, ImpactRadius * 1.15f, 0.9f, hits);
-            fx.DustStream(ground, forward, 8, 5f, 0.9f);
+            // Slam: flat, wide shock with long fissures running out ahead; the camera slams down with it.
+            GroundImpact(ground, ImpactRadius * 1.3f, 1f, hits);
+            fx.Echoes(ground, ImpactRadius * 1.5f, 3, new Color(1f, 0.6f, 0.25f, 0.7f));
+            fx.Fissure(ground, forward, 3.4f, 2.2f);
+            fx.SparkRing(ground, 28, 9f);
+            fx.DustStream(ground, forward, 10, 6f, 1f);
+            avatar.CameraRig.Shake(0.15f, 0.2f);
         }
+    }
+
+    // Take-off of the charged slam: the spin energy bursts out and the hammer goes up.
+    void LeapFx()
+    {
+        Vector3 feet = Ground(transform.position);
+        fx.Impact(feet, 1.8f + spinTier, 0.5f + 0.6f * spinTier);
+        fx.Column(feet, 9f + 5f * spinTier, 10 + (int)(14f * spinTier), 0.5f, new Color(1f, 0.7f, 0.4f, 0.5f));
+        avatar.CameraRig.FovPunch(5f + 4f * spinTier, 0.25f);
+        avatar.CameraRig.Shake(0.12f, 0.12f);
+        HitFeedback.Instance?.PlaySwing(true);
     }
 
     void DiveFx()
     {
         Vector3 head = Head;
         fx.Sparks(head, Vector3.up, 16, 7f, 0.8f);
-        fx.Smear(head, 2f, 0.2f, new Color(1f, 0.9f, 0.6f, 0.5f));
-        avatar.CameraRig.FovPunch(-(3f + 4f * spinTier), 0.3f);
+        fx.Smear(head, 2f + spinTier, 0.2f, new Color(1f, 0.9f, 0.6f, 0.5f));
+        avatar.CameraRig.FovPunch(-(3f + 6f * spinTier), 0.3f);
         avatar.CameraRig.Shake(0.1f, 0.12f);
         HitFeedback.Instance?.PlaySwing(true);
     }
 
     void FinalSlamFx(float range, int spins, int hits)
     {
-        float power = 0.6f + 0.12f * spins;
+        // Always above the overhead slam (1.0) and growing with the charge.
+        float power = 1.2f + 0.08f * spins;
         Vector3 ground = Ground(transform.position);
         GroundImpact(ground, range, power, hits);
+        fx.Echoes(ground, range, 3 + spins / 3, Color.Lerp(HammerFx.Ember, new Color(1f, 0.3f, 0.2f), spinTier));
+        for (int i = 0; i < 4 + spins; i++) fx.Fissure(ground, Quaternion.Euler(0f, i * 360f / (4 + spins), 0f) * Vector3.forward, range * 0.9f, 2.5f);
+        fx.Column(ground, 8f + spins, 12 + spins * 3, 0.9f, new Color(1f, 0.85f, 0.6f, 0.5f));
+        avatar.CameraRig.Shake(0.25f + 0.05f * spins, 0.3f);
         fx.Ring(ground, range * 0.35f, 0.2f, Color.white);
         fx.Sparks(ground + Vector3.up * 0.1f, Vector3.up, 20 + spins * 5, 8f + spins, 0.6f, 0.09f, 0.6f);
         landSkip = true;
         if (spins >= MaxDamageSpins) HitFeedback.Instance?.PlayBreak(ground + Vector3.up * 0.4f);
     }
 
-    // Maps the swing onto: quick cock-back, one accelerating fall that lands as the hit resolves, follow-through, recovery.
+    // Maps the swing onto: raise/cock-back, one fall or sweep that reaches the impact pose as the hit resolves, follow-through, recovery.
+    // Each step has its own start pose (see the builder): scoop from low right, hoist overhead.
     // The pose freezes while the contact hold runs; the swing clock keeps going.
     void SwingPose(out Vector3 pos, out Vector3 euler, out float tilt)
     {
         float w = currentSwing.windup;
-        float cock = w * CockFraction;
+        int step = activeStep;
+        float cock = w * CockFraction[step];
         float strike = currentSwing.strike;
-        float side = activeStep == 0 ? -1f : 1f;
-        float impactU = activeStep == 0 ? UppercutImpactU : 1f;
+        float impactU = ImpactU[step];
         if (fx.Holding)
         {
             if (!poseHeld) { poseHeld = true; holdTime = attackTime; }
@@ -316,25 +378,27 @@ public class HammerMoveset : AvatarMoveset
         {
             float u = Mathf.Clamp01(t / cock);
             currentSwing.Evaluate(SwingPhase.Windup, u, weapon.restPosition, weapon.restEuler, weapon, out pos, out euler);
-            tilt = -WindupTilt * side * Mathf.SmoothStep(0f, 1f, u);
+            tilt = WindupTilt[step] * Mathf.SmoothStep(0f, 1f, u);
         }
         else if (t < w)
         {
             float u = Mathf.Clamp01((t - cock) / (w - cock));
             currentSwing.Evaluate(SwingPhase.Strike, u * impactU, weapon.restPosition, weapon.restEuler, weapon, out pos, out euler);
-            tilt = Mathf.Lerp(-WindupTilt, ImpactOvershoot, u * u) * side;
+            tilt = Mathf.Lerp(WindupTilt[step], ImpactOvershoot[step], u * u);
         }
         else if (t < w + strike)
         {
             float u = Mathf.Clamp01((t - w) / strike);
-            float eased = 1f - (1f - u) * (1f - u);
+            float eased = 1f - (1f - u) * (1f - u) * (1f - u);
             currentSwing.Evaluate(SwingPhase.Strike, Mathf.Lerp(impactU, 1f, eased), weapon.restPosition, weapon.restEuler, weapon, out pos, out euler);
-            tilt = ImpactOvershoot * side * (1f - Mathf.Clamp01((t - w) / FollowTiltTime));
+            tilt = ImpactOvershoot[step] * (1f - Mathf.Clamp01((t - w) / FollowTiltTime));
         }
         else
         {
+            // The scoop hangs at its apex while launched enemies are still rising.
+            float hold = RecoveryHold[step];
             float u = Mathf.Clamp01((t - w - strike) / Mathf.Max(0.01f, currentSwing.recovery));
-            currentSwing.Evaluate(SwingPhase.Recovery, u, weapon.restPosition, weapon.restEuler, weapon, out pos, out euler);
+            currentSwing.Evaluate(SwingPhase.Recovery, Mathf.Clamp01((u - hold) / (1f - hold)), weapon.restPosition, weapon.restEuler, weapon, out pos, out euler);
             tilt = 0f;
         }
     }
@@ -342,7 +406,8 @@ public class HammerMoveset : AvatarMoveset
     Color TrailColor()
     {
         if (Time.time < ultimateUntil) return new Color(1f, 0.95f, 0.7f, 0.9f);
-        if (charging || slamming)
+        if (swinging) return activeStep == 0 ? new Color(1f, 0.95f, 0.65f, 0.85f) : new Color(1f, 0.4f, 0.12f, 0.9f);
+        if (charging || leaping || slamming)
         {
             Color red = new Color(1f, 0.15f, 0.08f, 0.95f);
             return spinTier < 0.5f ? Color.Lerp(weapon.trailColor, red, spinTier * 2f)
@@ -387,7 +452,7 @@ public class HammerMoveset : AvatarMoveset
         if (input.jump && avatar.IsGrounded && !Busy)
         {
             avatar.Hop(JumpHeight);
-            dashUntil = Time.time + DashPoseDuration;
+            jumpUntil = Time.time + JumpPoseDuration;
             // Smash the floor, then spring off it.
             Vector3 ground = Ground(transform.position);
             GroundImpact(ground, 1.6f, 0.25f, 0);
@@ -408,15 +473,14 @@ public class HammerMoveset : AvatarMoveset
         bool floorAlign = false;
         float lift = 0f;
         Vector3 squashScale = Vector3.one;
-        if (charging || slamming) spinTier = Mathf.Clamp01(spinDegrees / (360f * MaxDamageSpins));
+        if (charging || leaping || slamming) spinTier = Mathf.Clamp01(spinDegrees / (360f * MaxDamageSpins));
         if (charging) scale *= 1f + SpinGrowth * spinTier;
         bool wasHop = hopMoving;
         hopMoving = false;
         float poseSharpness = PoseSharpness;
         if (ultimate)
         {
-            // Head-pivot whirl: the head is the planted centre, the handle leans out and circles it,
-            // flinging wider and faster in the air and dragging on every landing.
+            // Pin the handle so the enlarged head sweeps around the avatar.
             ultimatePhase += dt / UltimateBeat;
             if (ultimatePhase >= 1f)
             {
@@ -426,7 +490,7 @@ public class HammerMoveset : AvatarMoveset
             }
             float arc = ultimatePhase < UltimatePlant ? 0f : Arc((ultimatePhase - UltimatePlant) / (1f - UltimatePlant));
             ultimateYaw += UltimateSpinSpeed * (ultimatePhase < UltimatePlant ? 0.5f : 0.5f + 0.8f * arc) * dt;
-            rotation = Quaternion.Euler(0f, ultimateYaw, 0f) * Quaternion.Euler(180f + Mathf.Lerp(UltimateLeanLand, UltimateLeanAir, arc), 0f, 0f);
+            rotation = Quaternion.Euler(0f, ultimateYaw, 0f) * Quaternion.Euler(Mathf.Lerp(UltimateLeanLand, UltimateLeanAir, arc), 0f, 0f);
             lift = UltimateHopHeight * arc;
             floorAlign = true;
             poseSharpness = SpinPoseSharpness;
@@ -434,14 +498,45 @@ public class HammerMoveset : AvatarMoveset
         else if (charging)
         {
             // Same rule while charging: handle circles the planted head.
-            rotation = Quaternion.Euler(0f, spinDegrees, 0f) * Quaternion.Euler(180f + ChargeLean, 0f, 0f);
+            // Faster and wider as the spin builds (visual only; the rotation count above is unchanged).
+            spinVisual += SpinDegreesPerSecond * SpinVisualBoost * spinTier * dt * AttackSpeed;
+            rotation = Quaternion.Euler(0f, spinDegrees + spinVisual, 0f) * Quaternion.Euler(180f + ChargeLean + SpinLeanGrowth * spinTier, 0f, 0f);
             floorAlign = true;
             poseSharpness = SpinPoseSharpness;
         }
-        else if (slamming || Time.time < specialUntil || Time.time < dashUntil || Time.time < rushUntil)
+        else if (leaping)
+        {
+            // Hoisted overhead and stretched while rising.
+            rotation = Quaternion.Euler(LeapPitch, 0f, 0f);
+            position = new Vector3(0f, 0.3f, 0f);
+            squashScale = new Vector3(0.9f, 1.2f, 0.9f);
+            floorAlign = false;
+        }
+        else if (slamming || Time.time < specialUntil)
         {
             rotation = Quaternion.Euler(SlamPitch, 0f, 0f);
             position = new Vector3(0f, SlamPoseHeight, 0f);
+            if (slamming) squashScale = new Vector3(0.85f, 1.25f, 0.85f);
+        }
+        else if (Time.time < rushUntil)
+        {
+            // Levelled like a battering ram, head leading.
+            rotation = Quaternion.Euler(RushPitch, 0f, 0f);
+            position = new Vector3(0f, SlamPoseHeight, 0.2f);
+            squashScale = new Vector3(0.9f, 1.15f, 0.9f);
+        }
+        else if (Time.time < dashUntil)
+        {
+            // Head trails low behind while the swing carries you forward.
+            rotation = Quaternion.Euler(DashPitch, 0f, 0f);
+            position = new Vector3(0f, 0.5f, -0.1f);
+        }
+        else if (Time.time < jumpUntil)
+        {
+            // Springing up: hammer hoisted and stretched.
+            rotation = Quaternion.Euler(JumpPitch, 0f, 0f);
+            position = new Vector3(0f, 0.25f, 0f);
+            squashScale = new Vector3(0.92f, 1.18f, 0.92f);
         }
         else if (!swinging && input.wish.sqrMagnitude > 0.01f)
         {
@@ -480,8 +575,9 @@ public class HammerMoveset : AvatarMoveset
         Vector3 fullScale = squashScale * (scale * (1f + punch));
         if (floorAlign)
         {
-            // Pin the head centre over the avatar, then drop the lowest corner onto the floor.
-            position = -(rotation * Vector3.Scale(fullScale, HeadInMotion()));
+            // Ultimate anchors the handle; other grounded poses anchor the head.
+            Vector3 pivot = ultimate ? visual.localPosition : HeadInMotion();
+            position = -(rotation * Vector3.Scale(fullScale, pivot));
             position += pose.InverseTransformVector(Vector3.up) * (transform.position.y + FloorClearance + lift - LowestY(pose, position, rotation, fullScale));
         }
         EaseMotion(position, rotation, fullScale, poseSharpness, dt);
@@ -550,10 +646,10 @@ public class HammerMoveset : AvatarMoveset
         {
             // The ribbon follows the whole arc: cock-back, fall and follow-through.
             bool swingTrail = swinging && attackTime < currentSwing.windup + currentSwing.strike;
-            trail.Emitting = swingTrail || charging || slamming || ultimate || rush || Time.time < dashFxUntil;
+            trail.Emitting = swingTrail || charging || leaping || slamming || ultimate || rush || Time.time < dashFxUntil;
             Color color = TrailColor();
             // While the head is the spin centre the ribbon rides the swinging handle instead.
-            bool onHandle = charging || ultimate;
+            bool onHandle = charging;
             if (color != trailNow || onHandle != spinTrail)
             {
                 trailNow = color;
@@ -564,7 +660,33 @@ public class HammerMoveset : AvatarMoveset
         }
 
         if (swinging && attackTime < currentSwing.windup + currentSwing.strike)
-            fx.Smear(head, SwingSmearSize, 0.14f, new Color(1f, 0.85f, 0.5f, 0.3f));
+        {
+            float cock = currentSwing.windup * CockFraction[activeStep];
+            if (activeStep == 0)
+            {
+                // Scoop: the head drags along the floor, then streaks upward in a pale column of light.
+                if (attackTime < currentSwing.windup)
+                {
+                    int s = HammerFx.Steps(ref sparkAcc, 90f, dt);
+                    if (s > 0) fx.Scrape(Ground(new Vector3(head.x, transform.position.y, head.z)), Facing, s);
+                }
+                else fx.Smear(head, 1.5f, 0.2f, new Color(1f, 0.95f, 0.7f, 0.4f));
+            }
+            else if (attackTime > cock)
+            {
+                // Drop: a tall streak above the head, getting longer as it falls.
+                fx.Smear(head + Vector3.up * 0.6f, 1.5f, 0.12f, new Color(1f, 0.5f, 0.2f, 0.4f));
+                fx.Smear(head, 1.8f, 0.16f, new Color(1f, 0.6f, 0.25f, 0.45f));
+            }
+            else fx.Smear(head, SwingSmearSize, 0.14f, new Color(1f, 0.85f, 0.5f, 0.3f));
+        }
+
+        if (leaping)
+        {
+            fx.Smear(head, 1.6f + spinTier, 0.2f, new Color(1f, 0.75f, 0.4f, 0.45f));
+            int n = HammerFx.Steps(ref sparkAcc, 60f, dt);
+            if (n > 0) fx.Sparks(feet, Vector3.down, n, 4f, 0.5f, 0.07f, 0.4f);
+        }
 
         if (charging) ChargeFx(dt, feet, HandleEnd);
         else lastSpinCount = 0;
@@ -619,10 +741,10 @@ public class HammerMoveset : AvatarMoveset
 
         if (ultimate)
         {
-            Vector3 tip = HandleEnd;
+            Vector3 tip = head;
             fx.Smear(tip, 2.4f, 0.25f, new Color(1f, 0.85f, 0.45f, 0.45f));
             int n = HammerFx.Steps(ref sparkAcc, 50f, dt);
-            if (n > 0) fx.Sparks(tip, (tip - head).normalized + Vector3.up * 0.3f, n, 9f, 0.5f, 0.09f, 0.5f);
+            if (n > 0) fx.Sparks(tip, (tip - HandleEnd).normalized + Vector3.up * 0.3f, n, 9f, 0.5f, 0.09f, 0.5f);
             int d = HammerFx.Steps(ref dustAcc, 22f, dt);
             if (d > 0) fx.Dust(feet, d, 4f, UltimateRange * 0.7f, 1.2f, 0.9f);
             avatar.CameraRig.Shake(0.05f, 0.1f);
@@ -631,6 +753,7 @@ public class HammerMoveset : AvatarMoveset
         {
             // Shrinking back down hits the floor once more.
             GroundImpact(feet, UltimateRange * 0.8f, 1f, 0);
+            fx.Column(feet, 10f, 20, 1f, new Color(1f, 0.6f, 0.3f, 0.5f));
             fx.Sparks(feet + Vector3.up * 0.2f, Vector3.up, 40, 9f, 0.8f, 0.09f, 0.6f);
         }
         wasUltimate = ultimate;
@@ -736,6 +859,7 @@ public class HammerMoveset : AvatarMoveset
         Vector3 ground = Ground(transform.position);
         fx.Ring(ground, 2.4f, 0.35f, HammerFx.Ember);
         fx.Ring(ground, 1.2f, 0.25f, Color.white);
+        fx.Fissure(ground, rushDirection, RushDistance * 0.6f, 1.8f);
         fx.DustStream(ground, -rushDirection, 20, 8f, 1.1f);
         fx.Sparks(ground + Vector3.up * 0.3f, -rushDirection + Vector3.up * 0.2f, 30, 12f, 0.5f, 0.08f, 0.5f);
         avatar.CameraRig.Shake(0.3f, 0.25f);
@@ -751,6 +875,8 @@ public class HammerMoveset : AvatarMoveset
         // Entrance slam: the biggest ground hit short of a full charge.
         Vector3 ground = Ground(transform.position);
         GroundImpact(ground, SpecialRange, 1f, hits);
+        // Triple echoing shock front, no fissures: a burst in all directions rather than a smash.
+        fx.Echoes(ground, SpecialRange, 3, new Color(1f, 0.95f, 0.8f, 0.7f));
         fx.Ring(ground, SpecialRange * 0.5f, 0.25f, Color.white);
         fx.Sparks(ground + Vector3.up * 0.2f, Vector3.up, 30, 10f, 0.5f, 0.09f, 0.6f);
         fx.DustStream(ground, Vector3.up, 12, 5f, 1f);
@@ -768,6 +894,8 @@ public class HammerMoveset : AvatarMoveset
         GroundImpact(ground, UltimateRange, 1.3f, 0);
         fx.Ring(ground, UltimateRange * 1.3f, 0.6f, new Color(1f, 0.85f, 0.4f, 0.6f));
         fx.Crack(ground, UltimateRange * 0.9f, 3f);
+        fx.Column(ground, 14f, 30, 1.2f, new Color(1f, 0.9f, 0.55f, 0.55f));
+        for (int i = 0; i < 8; i++) fx.Fissure(ground, Quaternion.Euler(0f, i * 45f, 0f) * Vector3.forward, UltimateRange, 3f);
         fx.Sparks(ground + Vector3.up * 0.3f, Vector3.up, 50, 12f, 0.9f, 0.1f, 0.7f);
         avatar.CameraRig.FovPunch(-8f, 0.5f);
         HitFeedback.Instance?.PlayUpgradeFlash(transform.position + Vector3.up);

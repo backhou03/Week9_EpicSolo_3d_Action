@@ -19,6 +19,8 @@ public class EnemyAttack : MonoBehaviour
     const float TurnSpeed = 540f;
 
     [SerializeField] EnemyAttackKind kind;
+    [SerializeField] float damageMultiplier = 1f;
+    public void SetKind(EnemyAttackKind value) => kind = value;
     Enemy enemy;
     WeaponAvatar target;
     float remaining, readyAt;
@@ -124,7 +126,7 @@ public class EnemyAttack : MonoBehaviour
     {
         if (!IsTelegraphing) return;
         EndTelegraph();
-        if (kind == EnemyAttackKind.Ranged) EnemyProjectile.Fire(AttackOrigin, AimDirection, RangedDamage);
+        if (kind == EnemyAttackKind.Ranged) EnemyProjectile.Fire(AttackOrigin, AimDirection, Mathf.RoundToInt(RangedDamage * damageMultiplier));
         else if (target != null && !target.IsDead)
         {
             Vector3 to = target.Center - AttackOrigin;
@@ -134,7 +136,7 @@ public class EnemyAttack : MonoBehaviour
                 && (!Physics.Linecast(AttackOrigin, target.Center, out RaycastHit hit) || hit.collider.GetComponentInParent<WeaponAvatar>() == target))
             {
                 if (target.Invulnerable) PlayerHurtFx.Dodge();
-                target.TakeDamage(MeleeDamage, transform.position);
+                target.TakeDamage(Mathf.RoundToInt(MeleeDamage * damageMultiplier), transform.position);
             }
         }
         AttackFired?.Invoke(this);

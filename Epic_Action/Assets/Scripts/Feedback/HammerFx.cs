@@ -171,6 +171,54 @@ public class HammerFx : MonoBehaviour
         glow.Emit(ep, 1);
     }
 
+    // Glow blobs shooting straight up from the ground: a rising pillar (uppercut, ultimate start).
+    public void Column(Vector3 ground, float speed, int count, float width, Color color)
+    {
+        var ep = new ParticleSystem.EmitParams { startColor = color };
+        for (int i = 0; i < count; i++)
+        {
+            Vector2 disc = Random.insideUnitCircle * width;
+            ep.position = ground + new Vector3(disc.x, Random.Range(0f, 0.3f), disc.y);
+            ep.velocity = Vector3.up * (speed * Random.Range(0.45f, 1f));
+            ep.startSize = Random.Range(0.35f, 0.75f);
+            ep.startLifetime = Random.Range(0.25f, 0.45f);
+            ep.rotation = Random.Range(0f, 360f);
+            glow.Emit(ep, 1);
+        }
+        Sparks(ground + Vector3.up * 0.2f, Vector3.up, count, speed * 1.2f, 0.18f, 0.06f, 0.55f);
+    }
+
+    // A line of fissures running from `origin` along `direction`, fading in size toward the tip.
+    public void Fissure(Vector3 origin, Vector3 direction, float length, float life)
+    {
+        direction.y = 0f;
+        if (direction.sqrMagnitude < 0.0001f) return;
+        direction.Normalize();
+        const int steps = 5;
+        for (int i = 0; i < steps; i++)
+        {
+            float u = (i + 0.5f) / steps;
+            Crack(origin + direction * (length * u), length * 0.42f * (1f - 0.6f * u), life);
+        }
+    }
+
+    // Wave rings fired together at growing radii and lifetimes so they read as one shock front with echoes.
+    public void Echoes(Vector3 ground, float radius, int count, Color color)
+    {
+        for (int i = 0; i < count; i++)
+        {
+            float u = (i + 1f) / count;
+            Ring(ground, radius * u, 0.25f + 0.25f * u, new Color(color.r, color.g, color.b, color.a * (1.1f - 0.5f * u)));
+        }
+    }
+
+    // Debris dragged along the floor from the head (low scoop): a short spray, not a cloud.
+    public void Scrape(Vector3 ground, Vector3 direction, int count)
+    {
+        DustStream(ground, direction, count, 3.5f, 0.45f);
+        Sparks(ground + Vector3.up * 0.05f, direction + Vector3.up * 0.25f, count, 5f, 0.35f, 0.05f, 0.3f);
+    }
+
     // The whole ground hit: rings, crack, rolling dust, sparks and a white flash. power ~0.2 (tap) to 1.5 (finisher).
     public void Impact(Vector3 ground, float radius, float power)
     {

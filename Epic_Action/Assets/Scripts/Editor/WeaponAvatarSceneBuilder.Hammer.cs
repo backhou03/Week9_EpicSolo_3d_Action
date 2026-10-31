@@ -30,7 +30,7 @@ public static partial class WeaponAvatarSceneBuilder
         d.bladeBase = new Vector3(0f, HammerHeadHeight - HammerTrailHalfSpan, 0f);
         d.bladeTip = new Vector3(0f, HammerHeadHeight + HammerTrailHalfSpan, 0f);
         d.hitRadius = HammerHitRadius;
-        d.damage = 12;
+        d.damage = 32;
         d.knockback = 7f;
         d.maxHits = 0;
         d.comboResetTime = 1.2f;
@@ -44,26 +44,34 @@ public static partial class WeaponAvatarSceneBuilder
         d.upgradeTo = null;
         d.combo.Clear();
         d.altCombo.Clear();
-        // Pose: hand pivot with the handle along +Y; X pitch swings the head forward. Hit lands at the end of windup.
+        // Pose: hand pivot with the handle along +Y; X pitch swings the head forward, Z rolls it sideways first. The hit lands at the end of windup.
+        // 1: low scoop from the right hip (head near the floor) -> big sweep up past the face.
         d.combo.Add(GameSceneBuilder.Swing(0.14f, 0.12f, 0.16f,
-            new Vector3(0f, 1.3f, 0.2f), new Vector3(115f, 0f, 0f),
-            new Vector3(0f, 1.3f, 0.4f), new Vector3(15f, 0f, 0f),
+            new Vector3(0.25f, 0.7f, 0.45f), new Vector3(118f, 0f, -25f),
+            new Vector3(-0.1f, 1.6f, 0.35f), new Vector3(-30f, 0f, 10f),
             lunge: 0f, damage: 1f, shake: 1.2f, heavy: true));
-        d.combo.Add(GameSceneBuilder.Swing(0.16f, 0.08f, 0.2f,
-            new Vector3(0f, 1.2f, -0.1f), new Vector3(-40f, 0f, 0f),
+        // 2: hoisted straight overhead (long telegraph, windup 0.16 -> 0.28 so the raise reads), then a vertical drop.
+        d.combo.Add(GameSceneBuilder.Swing(0.28f, 0.08f, 0.2f,
+            new Vector3(0f, 2.1f, -0.45f), new Vector3(-20f, 0f, 0f),
             new Vector3(0f, 1.1f, 0.55f), new Vector3(100f, 0f, 0f),
             lunge: 0f, damage: 1.5f, shake: 1.8f, heavy: true));
+        // 3: only damage/feel are read; the hold-spin and leap-slam are driven by HammerMoveset.
         d.combo.Add(GameSceneBuilder.Swing(0.12f, 0.2f, 0.35f,
             new Vector3(0f, 1.7f, 0f), new Vector3(-25f, 0f, 0f),
             new Vector3(0f, 0.7f, 1.2f), new Vector3(105f, 0f, 0f),
             lunge: 0f, damage: 1.8f, shake: 2.2f, heavy: true));
         foreach (var swing in d.combo)
         {
-            // Quick cock-back with a little overshoot, a fall that keeps accelerating, a recovery that lifts off the floor.
-            swing.windupCurve = new AnimationCurve(new Keyframe(0f, 0f, 0f, 1.5f), new Keyframe(0.75f, 1.06f, 0.6f, 0.1f), new Keyframe(1f, 1f, -0.6f, 0f));
-            swing.strikeCurve = new AnimationCurve(new Keyframe(0f, 0f, 0f, 0.2f), new Keyframe(1f, 1f, 2.8f, 0f));
             swing.recoveryCurve = new AnimationCurve(new Keyframe(0f, 0f, 0f, 0.6f), new Keyframe(1f, 1f, 1.5f, 0f));
         }
+        // Scoop: quick crouch with a little overshoot, then a fast start that eases off at the top of the sweep.
+        d.combo[0].windupCurve = new AnimationCurve(new Keyframe(0f, 0f, 0f, 1.5f), new Keyframe(0.75f, 1.06f, 0.6f, 0.1f), new Keyframe(1f, 1f, -0.6f, 0f));
+        d.combo[0].strikeCurve = new AnimationCurve(new Keyframe(0f, 0f, 0f, 2.4f), new Keyframe(1f, 1f, 0.3f, 0f));
+        // Slam: slow heave with a hang at the top, then a drop that keeps accelerating into the floor.
+        d.combo[1].windupCurve = new AnimationCurve(new Keyframe(0f, 0f, 0f, 0.7f), new Keyframe(0.7f, 1f, 0.9f, 0.2f), new Keyframe(1f, 1.04f, 0.1f, 0f));
+        d.combo[1].strikeCurve = new AnimationCurve(new Keyframe(0f, 0f, 0f, 0.1f), new Keyframe(1f, 1f, 3.5f, 0f));
+        d.combo[2].windupCurve = new AnimationCurve(new Keyframe(0f, 0f, 0f, 1.5f), new Keyframe(0.75f, 1.06f, 0.6f, 0.1f), new Keyframe(1f, 1f, -0.6f, 0f));
+        d.combo[2].strikeCurve = new AnimationCurve(new Keyframe(0f, 0f, 0f, 0.2f), new Keyframe(1f, 1f, 2.8f, 0f));
         return d;
     }
 }

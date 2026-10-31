@@ -31,6 +31,8 @@ public class RifleMoveset : AvatarMoveset
     const float ExplosionDamageScale = 0.7f;
     const float DashDistance = 3.5f;
     const float DashTime = 0.18f;
+    const int DashShots = 3;
+    const float DashShotGap = 0.07f;
     const int SpecialShots = 8;
     const float SpecialInterval = 0.065f;
     const float SpecialRange = 8f;
@@ -87,6 +89,9 @@ public class RifleMoveset : AvatarMoveset
     bool firing, jumpQueued, wasGrounded;
     Vector3 aimPoint;
     int rounds = MagazineSize, explosiveRounds, specialShotsLeft;
+    int dashShotsLeft;
+    float dashShotTimer;
+    Vector3 dashShotDirection;
     float reloadLeft, reloadTotal, reloadJolt, ultimateLeft, specialTimer, recoilDashLeft;
     int reloadBeat;
     Vector3 specialForward;
@@ -94,6 +99,8 @@ public class RifleMoveset : AvatarMoveset
     // The trigger must not block E or Q while it is held.
     public override bool Busy => base.Busy || specialShotsLeft > 0;
     protected override float SkillCooldown => MachineGun ? MachineSkillCooldown : ExplosiveCooldown;
+    public override string SkillName => "폭발탄 장전";
+    public override float UltimateTimeRemaining => Mathf.Max(0f, ultimateLeft);
     bool MachineGun => ultimateLeft > 0f;
     bool MachineVisual => machineVisual != null && machineVisual.gameObject.activeSelf;
     Transform ActiveVisual => MachineVisual ? machineVisual : visual;
@@ -238,16 +245,25 @@ public class RifleMoveset : AvatarMoveset
 
     protected override void OnDash(Vector3 dir)
     {
-        // Preserve the requested movement direction; only the backward shot is assisted.
+        // Preserve the requested movement direction; only the backward burst is assisted.
         transform.rotation = Quaternion.LookRotation(-dir, Vector3.up);
-        var target = FindAssistTarget(weapon.fireRange, 45f, -dir);
-        aimPoint = target != null ? target.Center : Muzzle - dir * weapon.fireRange;
-        if (rounds > 0 && reloadLeft <= 0f) Fire(false);
-        else PropulsionShot(-dir);
+        dashShotDirection = -dir;
+        FireDashShot();
+        dashShotsLeft = DashShots - 1;
+        dashShotTimer = DashShotGap;
         recoilDashLeft = DashTime;
         avatar.GrantInvulnerability(DashTime);
         avatar.Lunge(dir, DashDistance * (MachineGun ? MachineDashScale : 1f), DashTime);
         fx.DashStart(transform.position, dir, transform, DashTime, MachineGun);
+    }
+
+    // One shot of the backward dash burst; an empty magazine only propels.
+    void FireDashShot()
+    {
+        var target = FindAssistTarget(weapon.fireRange, 45f, dashShotDirection);
+        aimPoint = target != null ? target.Center : Muzzle + dashShotDirection * weapon.fireRange;
+        if (rounds > 0 && reloadLeft <= 0f) Fire(false);
+        else PropulsionShot(dashShotDirection);
     }
 
     protected override void OnSpecial()
@@ -267,6 +283,12 @@ public class RifleMoveset : AvatarMoveset
     {
         fireTimer = Mathf.Max(0f, fireTimer - dt);
         recoilDashLeft = Mathf.Max(0f, recoilDashLeft - dt);
+        if (dashShotsLeft > 0 && (dashShotTimer -= dt) <= 0f)
+        {
+            dashShotsLeft--;
+            dashShotTimer = DashShotGap;
+            FireDashShot();
+        }
         if (ultimateLeft > 0f)
         {
             ultimateLeft = Mathf.Max(0f, ultimateLeft - dt);

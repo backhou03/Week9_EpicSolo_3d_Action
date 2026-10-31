@@ -5,8 +5,10 @@ using UnityEngine;
 [DefaultExecutionOrder(-100)]
 public class ShearsMoveset : AvatarMoveset
 {
-    const float MoveSpeed = 4.5f;
-    const float Acceleration = 40f;
+    const float MoveSpeed = 5.6f;
+    const float Acceleration = 62f;
+    const float SprintBoost = 1.7f;
+    const float TurnBoost = 1.6f;
     const float JumpHeight = 2f;
     const float CrouchTime = 0.08f;
     const float CrouchDip = 0.1f;
@@ -39,6 +41,9 @@ public class ShearsMoveset : AvatarMoveset
     const float AssistStandOff = 1.2f;
     const float AssistAdvance = 1.2f;
     // Presentation only.
+    const float SnipFlashSize = 1.1f;
+    static readonly float[] StepPunch = { 1.8f, 2.6f, 4f };
+    static readonly float[] StepShake = { 0.08f, 0.14f, 0.3f };
     const float AirWindupSpin = 35f;
     const float AirLean = 14f;
     const float AirJawPeak = 85f;
@@ -66,6 +71,8 @@ public class ShearsMoveset : AvatarMoveset
     Vector3 visualPosition;
     float presentationScale = 1f;
     protected override float SkillCooldown => SkillCooldownSeconds;
+    public override string SkillName => "연속 절단";
+    public override float UltimateTimeRemaining => Mathf.Max(0f, ultimateUntil - Time.time);
     public override bool Busy => base.Busy || skillSequence || rollLeft > 0f;
     public override string Status => ultimateUntil > Time.time ? $"Giant shears {Mathf.CeilToInt(ultimateUntil - Time.time)}s" : "";
     ShearsDriver shears;
@@ -84,6 +91,7 @@ public class ShearsMoveset : AvatarMoveset
     public override void Configure(WeaponAvatar owner, WeaponData data, Transform weaponVisual)
     {
         legLength = Mathf.Max(0.3f, (data.bladeTip - data.bladeBase).magnitude * data.heldScale);
+        SprintMultiplier = SprintBoost;
         shears = weaponVisual.gameObject.AddComponent<ShearsDriver>();
         shears.Configure(data.jawClosed, data.restJaw);
         fx = gameObject.AddComponent<ShearsFx>();
@@ -258,12 +266,15 @@ public class ShearsMoveset : AvatarMoveset
             return;
         }
         // Combo cuts: the fan lingers longer and brighter on the finisher.
-        fx.BeginSweep(currentSwing.heavy ? glint : SweepColor, currentSwing.heavy ? 0.45f : 0.3f);
+        // Each cut hits a little harder than the last; the finisher lands with the most weight.
+        int step = Mathf.Clamp(comboStep - 1, 0, StepPunch.Length - 1);
+        fx.BeginSweep(currentSwing.heavy ? glint : SweepColor, currentSwing.heavy ? 0.5f : 0.3f + 0.04f * step);
+        cam.Shake(StepShake[step], 0.15f);
+        cam.FovPunch(StepPunch[step], 0.18f);
         if (currentSwing.heavy)
         {
-            fx.Puff(Feet + forward * 0.8f, Vector3.up, DustColor, 10, 3f, 0.3f, 0.45f, 70f);
-            cam.Shake(0.12f, 0.15f);
-            cam.FovPunch(2.5f, 0.18f);
+            fx.Puff(Feet + forward * 0.8f, Vector3.up, DustColor, 14, 3.5f, 0.3f, 0.45f, 70f);
+            fx.Arc(Hinge, swingFacing, 2.6f * AreaScale, 80f, new Color(1f, 0.95f, 0.75f, 0.6f), 0.28f, 0.5f);
         }
     }
 
@@ -273,6 +284,15 @@ public class ShearsMoveset : AvatarMoveset
         if (currentAlt) ResolveArea(SkillRadius, 180f);
         base.OnStrikeEnded();
         fx.EndSweep();
+        if (!currentAlt && !airAttack && !specialAttack) SnipFlash();
+    }
+
+    // The blades meet at the end of a cut: a bright clack at the tip.
+    void SnipFlash()
+    {
+        Vector3 tip = shears.HalfA.TransformPoint(weapon.bladeTip);
+        HitFeedback.Instance.PlaySnip(tip);
+        fx.Ring(tip, SnipFlashSize * (currentSwing.heavy ? 1.5f : 1f), new Color(1f, 1f, 1f, 0.8f), 0.18f, 0.2f);
     }
 
     protected override void OnBladeHit(HitContact contact)
@@ -286,12 +306,19 @@ public class ShearsMoveset : AvatarMoveset
     protected override void OnEnemyHit(Enemy enemy, bool tick, Vector3 direction)
     {
         if (tick) return;
+        if (!currentAlt && !airAttack && !specialAttack)
+        {
+            // Cut flash on the victim; kept small so multi-hits do not pile up.
+            fx.Ring(enemy.Center, 0.9f, new Color(1f, 0.95f, 0.8f, 0.7f), 0.16f, 0.25f);
+            fx.Puff(enemy.Center, direction + Vector3.up * 0.3f, Color.white, 5, 6f, 0.07f, 0.2f, 45f, 0.6f);
+        }
         if (currentSwing.heavy)
         {
             Vector3 ground = enemy.transform.position + Vector3.up * 0.05f;
             fx.Ring(ground, 2.2f * AreaScale, new Color(1f, 0.85f, 0.45f, 0.7f), 0.35f, 0.2f);
             fx.Puff(ground, Vector3.up, DustColor, 10, 3.5f, 0.3f, 0.45f, 70f);
-            avatar.CameraRig.Shake(0.3f, 0.22f);
+            avatar.CameraRig.Shake(0.4f, 0.25f);
+            avatar.CameraRig.FovPunch(2f, 0.2f);
         }
         if (swinger.Phase != SwingPhase.Strike) return;
         hitPauseLeft = Mathf.Max(hitPauseLeft, weapon.hitStop * currentSwing.hitStopScale);
@@ -521,7 +548,7 @@ public class ShearsMoveset : AvatarMoveset
             Accelerate(input.wish * MoveSpeed * MoveSpeedScale * weapon.swingMoveScale, Acceleration, dt);
             return;
         }
-        UpdateFacing(input.wish, dt);
+        UpdateFacing(input.wish, dt, TurnBoost);
 
         if (swinging)
         {

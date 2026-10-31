@@ -56,6 +56,10 @@ public abstract class AvatarMoveset : MonoBehaviour
     // True while the camera looks through the weapon's sights (the HUD crosshair hides).
     public virtual bool Aiming => false;
     public virtual string Status => "";
+    public virtual string SkillName => "스킬";
+    public float SkillCooldownProgress => Mathf.Clamp01(1f - avatar.SkillCooldownRemaining / SkillCooldown);
+    public float DashCooldownProgress => Mathf.Clamp01(1f - avatar.DashCooldownRemaining / DashCooldown);
+    public virtual float UltimateTimeRemaining => 0f;
 
     protected Vector3 CameraForward => Quaternion.Euler(0f, avatar.CameraRig.Yaw, 0f) * Vector3.forward;
 

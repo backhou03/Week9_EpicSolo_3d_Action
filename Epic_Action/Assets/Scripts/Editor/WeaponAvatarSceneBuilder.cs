@@ -28,15 +28,8 @@ public static partial class WeaponAvatarSceneBuilder
         var wall = GameSceneBuilder.MakeLit("Wall", new Color(0.45f, 0.5f, 0.58f), 0.2f, false);
 
         var root = new GameObject("GameRoot").transform;
-        GameSceneBuilder.BuildWorld(root, ground, wall);
         var camRig = GameSceneBuilder.BuildCamera(actions);
         var avatar = BuildAvatar(root, actions, camRig, new[] { slots[0], slots[1] });
-        var avatarObject = new SerializedObject(avatar);
-        var reserves = avatarObject.FindProperty("reserveWeapons");
-        reserves.arraySize = 2;
-        reserves.GetArrayElementAtIndex(0).objectReferenceValue = slots[2];
-        reserves.GetArrayElementAtIndex(1).objectReferenceValue = slots[3];
-        avatarObject.ApplyModifiedPropertiesWithoutUndo();
 
         var hudGo = new GameObject("AvatarHud");
         hudGo.transform.SetParent(root);
@@ -46,7 +39,7 @@ public static partial class WeaponAvatarSceneBuilder
         fxGo.transform.SetParent(root);
         GameSceneBuilder.Set(fxGo.AddComponent<HitFeedback>(), "cameraRig", camRig);
 
-        BuildEnemies(root, avatar);
+        BuildStage(root, avatar, slots, ground, wall);
         GameSceneBuilder.Set(camRig, "target", avatar.transform);
 
         EditorSceneManager.SaveScene(scene, ScenePath);

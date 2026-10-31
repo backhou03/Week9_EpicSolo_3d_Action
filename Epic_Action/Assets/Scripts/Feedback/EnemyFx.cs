@@ -382,13 +382,15 @@ public class PlayerHurtFx : MonoBehaviour
     static PlayerHurtFx instance;
 
     const float VignetteTime = 0.45f;
-    const float DodgeTime = 0.25f;
+    const float DodgeTime = 0.4f;
+    const float PopupTime = 0.7f;
     const float StrongTintTime = 0.15f;
 
     WeaponAvatar avatar;
     Texture2D vignette;
     int lastHp;
     float hurtTime = -10f, dodgeTime = -10f;
+    GUIStyle popupStyle;
     readonly List<Renderer> renderers = new List<Renderer>();
     readonly List<MaterialPropertyBlock> saved = new List<MaterialPropertyBlock>();
     readonly MaterialPropertyBlock scratch = new MaterialPropertyBlock();
@@ -452,8 +454,13 @@ public class PlayerHurtFx : MonoBehaviour
     {
         if (avatar == null || avatar.IsDead || Time.time - hurtTime < WeaponAvatar.HurtInvulnerability || Time.time - dodgeTime < 0.2f) return;
         dodgeTime = Time.time;
-        if (avatar.CameraRig != null) avatar.CameraRig.FovPunch(2.5f, 0.2f);
-        AudioSource.PlayClipAtPoint(ProceduralSfx.Snip, avatar.Center, 0.3f);
+        if (avatar.CameraRig != null) avatar.CameraRig.FovPunch(4f, 0.25f);
+        AudioSource.PlayClipAtPoint(ProceduralSfx.Snip, avatar.Center, 0.6f);
+        Color cyan = new Color(0.3f, 0.9f, 1f);
+        Vector3 feet = avatar.transform.position;
+        StageFx.Pulse(feet, cyan, 3.2f, 0.35f);
+        StageFx.Burst(avatar.Center, cyan, 24, 7f, 0.3f, 0.4f);
+        StageFx.Flash(avatar.Center, cyan, 4f, 6f, 0.2f);
     }
 
     // Body flashes red on the hit, then blinks through the invulnerability window.
@@ -517,8 +524,19 @@ public class PlayerHurtFx : MonoBehaviour
         }
         if (dodge > 0f)
         {
-            GUI.color = new Color(0.3f, 0.9f, 1f, Mathf.Clamp01(dodge) * 0.5f);
+            GUI.color = new Color(0.3f, 0.9f, 1f, Mathf.Clamp01(dodge) * 0.7f);
             GUI.DrawTexture(screen, vignette);
+        }
+        float popup = (Time.time - dodgeTime) / PopupTime;
+        if (popup >= 0f && popup < 1f)
+        {
+            if (popupStyle == null) popupStyle = new GUIStyle { alignment = TextAnchor.MiddleCenter, fontStyle = FontStyle.Bold };
+            popupStyle.fontSize = Mathf.RoundToInt(Screen.height * 0.05f);
+            var rect = new Rect(0f, Screen.height * (0.4f - 0.05f * popup), Screen.width, Screen.height * 0.08f);
+            popupStyle.normal.textColor = new Color(0f, 0f, 0f, 1f - popup);
+            GUI.Label(new Rect(rect.x + 2f, rect.y + 2f, rect.width, rect.height), "DODGE!", popupStyle);
+            popupStyle.normal.textColor = new Color(0.4f, 0.95f, 1f, 1f - popup);
+            GUI.Label(rect, "DODGE!", popupStyle);
         }
         GUI.color = Color.white;
     }
