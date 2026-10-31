@@ -1,0 +1,20 @@
+newmtl ChainSteel
+Kd 0.075 0.095 0.12
+Ks 0.25 0.25 0.25
+Ns 56
+d 1.0
+illum 2
+
+newmtl Steel
+Kd 0.63 0.73 0.82
+Ks 0.25 0.25 0.25
+Ns 75
+d 1.0
+illum 2
+
+newmtl CuttingSteel
+Kd 0.75 0.83 0.89
+Ks 0.25 0.25 0.25
+Ns 74
+d 1.0
+illum 2

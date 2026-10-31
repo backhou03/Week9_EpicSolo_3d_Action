@@ -1,0 +1,14 @@
+newmtl YellowPlastic
+Kd 1 0.66 0.055
+Ks 0.25 0.25 0.25
+Ns 57
+d 1.0
+illum 2
+
+newmtl RulerPrint
+Kd 1 1 1
+Ks 0.25 0.25 0.25
+Ns 54
+d 1.0
+illum 2
+map_Kd Ruler_Albedo.png

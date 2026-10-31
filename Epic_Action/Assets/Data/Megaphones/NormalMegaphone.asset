@@ -1,0 +1,153 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 32c7b4c017e3dc04cb6106f707e7e35d, type: 3}
+  m_Name: NormalMegaphone
+  m_EditorClassIdentifier: Assembly-CSharp::WeaponData
+  displayName: "\uC77C\uBC18 \uD655\uC131\uAE30"
+  description: "좌클릭: 작은 음파 발사 (전방 4.5m, 맞은 적 넉백)\nQ: 진화 확성기로 진화\nE: 다른 무기 줍기 (교체)"
+  prefab: {fileID: 9015698236624560531, guid: 68b03ad96d22c2144bb4becbc395aedb, type: 3}
+  heldScale: 1.7
+  gripLocalPosition: {x: 0, y: 0, z: 0}
+  gripLocalEuler: {x: 0, y: 0, z: 0}
+  restPosition: {x: 0.45, y: 1, z: 0.45}
+  restEuler: {x: 0, y: 0, z: 0}
+  bladeBase: {x: 0, y: 0, z: 0}
+  bladeTip: {x: 0, y: 1, z: 0}
+  hitRadius: 0.2
+  damage: 0
+  knockback: 18
+  maxHits: 0
+  comboResetTime: 0.8
+  combo:
+  - windup: 0.1
+    strike: 0.08
+    recovery: 0.25
+    chainAt: 0.85
+    windupPosition: {x: 0.45, y: 1, z: 0.45}
+    windupEuler: {x: 0, y: 0, z: 0}
+    strikePosition: {x: 0.45, y: 1.02, z: 0.35999998}
+    strikeEuler: {x: -4, y: 0, z: 0}
+    windupCurve:
+      serializedVersion: 2
+      m_Curve:
+      - serializedVersion: 3
+        time: 0
+        value: 0
+        inSlope: 0
+        outSlope: 3
+        tangentMode: 0
+        weightedMode: 0
+        inWeight: 0
+        outWeight: 0
+      - serializedVersion: 3
+        time: 1
+        value: 1
+        inSlope: 0
+        outSlope: 0
+        tangentMode: 0
+        weightedMode: 0
+        inWeight: 0
+        outWeight: 0
+      m_PreInfinity: 2
+      m_PostInfinity: 2
+      m_RotationOrder: 4
+    strikeCurve:
+      serializedVersion: 2
+      m_Curve:
+      - serializedVersion: 3
+        time: 0
+        value: 0
+        inSlope: 0
+        outSlope: 0
+        tangentMode: 0
+        weightedMode: 0
+        inWeight: 0
+        outWeight: 0
+      - serializedVersion: 3
+        time: 1
+        value: 1
+        inSlope: 3
+        outSlope: 0
+        tangentMode: 0
+        weightedMode: 0
+        inWeight: 0
+        outWeight: 0
+      m_PreInfinity: 2
+      m_PostInfinity: 2
+      m_RotationOrder: 4
+    recoveryCurve:
+      serializedVersion: 2
+      m_Curve:
+      - serializedVersion: 3
+        time: 0
+        value: 0
+        inSlope: 0
+        outSlope: 0
+        tangentMode: 0
+        weightedMode: 0
+        inWeight: 0
+        outWeight: 0
+      - serializedVersion: 3
+        time: 1
+        value: 1
+        inSlope: 0
+        outSlope: 0
+        tangentMode: 0
+        weightedMode: 0
+        inWeight: 0
+        outWeight: 0
+      m_PreInfinity: 2
+      m_PostInfinity: 2
+      m_RotationOrder: 4
+    damageScale: 1
+    knockbackScale: 1
+    hitStopScale: 1
+    shakeScale: 1
+    stagger: 0.35
+    jawWindup: 0
+    jawStrike: 0
+    bodyYaw: 0
+    cutOnContact: 0
+    leap: 0
+    lunge: 0
+    heavy: 0
+  altCombo: []
+  sonic: 1
+  sonicCrush: 0
+  sonicChargeTime: 0
+  sonicSingleUse: 0
+  sonicRange: 4.5
+  sonicHalfAngle: 20
+  sonicSpeed: 18
+  sonicMuzzle: {x: 0, y: 0.27, z: 0.4}
+  chainsaw: 0
+  tickInterval: 0
+  tickDamageScale: 0.25
+  sliceOnKill: 0
+  sliceDelay: 0
+  sliceBurstRadius: 0
+  instantSliceSpeed: 0
+  holdMoveScale: 1
+  swingMoveScale: 0.75
+  turnScale: 1
+  weightPull: 0
+  weightLean: 0
+  shears: 0
+  bloody: 0
+  jawClosed: -27
+  restJaw: 0
+  mirrorBlade: 0
+  hitStop: 0
+  shake: 0.15
+  fovPunch: 1.5
+  trailColor: {r: 1, g: 1, b: 1, a: 0.8}
+  upgradeTo: {fileID: 11400000, guid: 0f18d6bed0cdc364c9ac8deafa2ed207, type: 2}

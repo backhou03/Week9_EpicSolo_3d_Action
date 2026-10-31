@@ -1,0 +1,28 @@
+newmtl DarkSteel
+Kd 0.12 0.17 0.22
+Ks 0.25 0.25 0.25
+Ns 65
+d 1.0
+illum 2
+
+newmtl YellowPlastic
+Kd 1 0.66 0.055
+Ks 0.25 0.25 0.25
+Ns 57
+d 1.0
+illum 2
+
+newmtl RulerFace
+Kd 1 1 1
+Ks 0.25 0.25 0.25
+Ns 54
+d 1.0
+illum 2
+map_Kd RulerChainsaw_Albedo.png
+
+newmtl ChainSteel
+Kd 0.075 0.095 0.12
+Ks 0.25 0.25 0.25
+Ns 56
+d 1.0
+illum 2

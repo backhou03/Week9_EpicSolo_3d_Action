@@ -1,0 +1,41 @@
+newmtl Housing
+Kd 0.18 0.22 0.27
+Ks 0.25 0.25 0.25
+Ns 58
+d 1.0
+illum 2
+
+newmtl BladeYellow
+Kd 0.97 0.59 0.035
+Ks 0.25 0.25 0.25
+Ns 64
+d 1.0
+illum 2
+
+newmtl Rubber
+Kd 0.045 0.065 0.085
+Ks 0.25 0.25 0.25
+Ns 18
+d 1.0
+illum 2
+
+newmtl GripRings
+Kd 0.11 0.15 0.18
+Ks 0.25 0.25 0.25
+Ns 35
+d 1.0
+illum 2
+
+newmtl DarkSteel
+Kd 0.12 0.17 0.22
+Ks 0.25 0.25 0.25
+Ns 65
+d 1.0
+illum 2
+
+newmtl Steel
+Kd 0.63 0.73 0.82
+Ks 0.25 0.25 0.25
+Ns 75
+d 1.0
+illum 2

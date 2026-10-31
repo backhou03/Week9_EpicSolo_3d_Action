@@ -1,0 +1,329 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 32c7b4c017e3dc04cb6106f707e7e35d, type: 3}
+  m_Name: UpgradedRuler
+  m_EditorClassIdentifier: Assembly-CSharp::WeaponData
+  displayName: "\uBB34\uAE30 \uC790"
+  description: "좌클릭: 3연타 (대각선 → 가로 → 대각선 강타)\n맞은 적을 한 방에 처치\n첫 접촉 10회에 파괴\nQ: 전기톱으로 진화\nE: 다른 무기 줍기 (교체)"
+  prefab: {fileID: 2700415227055341681, guid: 2c96c973caac9614e8a2b9865b160528, type: 3}
+  heldScale: 1.8
+  gripLocalPosition: {x: 0, y: 0, z: 0}
+  gripLocalEuler: {x: 0, y: 0, z: 0}
+  restPosition: {x: 0.5, y: 0.95, z: 0.45}
+  restEuler: {x: 30, y: 0, z: -15}
+  bladeBase: {x: 0, y: -0.05, z: 0}
+  bladeTip: {x: 0, y: 1.03, z: 0}
+  hitRadius: 0.3
+  damage: 30
+  knockback: 8
+  maxHits: 10
+  comboResetTime: 0.9
+  combo:
+  - windup: 0.11
+    strike: 0.07
+    recovery: 0.2
+    chainAt: 0.45
+    windupPosition: {x: 0.9, y: 1.45, z: 0.1}
+    windupEuler: {x: -40, y: 0, z: -35}
+    strikePosition: {x: 0.1, y: 1, z: 0.7}
+    strikeEuler: {x: 100, y: 0, z: 35}
+    windupCurve:
+      serializedVersion: 2
+      m_Curve:
+      - serializedVersion: 3
+        time: 0
+        value: 0
+        inSlope: 0
+        outSlope: 3
+        tangentMode: 0
+        weightedMode: 0
+        inWeight: 0
+        outWeight: 0
+      - serializedVersion: 3
+        time: 1
+        value: 1
+        inSlope: 0
+        outSlope: 0
+        tangentMode: 0
+        weightedMode: 0
+        inWeight: 0
+        outWeight: 0
+      m_PreInfinity: 2
+      m_PostInfinity: 2
+      m_RotationOrder: 4
+    strikeCurve:
+      serializedVersion: 2
+      m_Curve:
+      - serializedVersion: 3
+        time: 0
+        value: 0
+        inSlope: 0
+        outSlope: 0
+        tangentMode: 0
+        weightedMode: 0
+        inWeight: 0
+        outWeight: 0
+      - serializedVersion: 3
+        time: 1
+        value: 1
+        inSlope: 3
+        outSlope: 0
+        tangentMode: 0
+        weightedMode: 0
+        inWeight: 0
+        outWeight: 0
+      m_PreInfinity: 2
+      m_PostInfinity: 2
+      m_RotationOrder: 4
+    recoveryCurve:
+      serializedVersion: 2
+      m_Curve:
+      - serializedVersion: 3
+        time: 0
+        value: 0
+        inSlope: 0
+        outSlope: 0
+        tangentMode: 0
+        weightedMode: 0
+        inWeight: 0
+        outWeight: 0
+      - serializedVersion: 3
+        time: 1
+        value: 1
+        inSlope: 0
+        outSlope: 0
+        tangentMode: 0
+        weightedMode: 0
+        inWeight: 0
+        outWeight: 0
+      m_PreInfinity: 2
+      m_PostInfinity: 2
+      m_RotationOrder: 4
+    damageScale: 1
+    knockbackScale: 1
+    hitStopScale: 1.2
+    shakeScale: 1.2
+    stagger: 0.35
+    jawWindup: 0
+    jawStrike: 0
+    bodyYaw: 0
+    cutOnContact: 0
+    leap: 0
+    lunge: 0.8
+    heavy: 0
+  - windup: 0.1
+    strike: 0.08
+    recovery: 0.22
+    chainAt: 0.45
+    windupPosition: {x: 0.9, y: 1, z: 0.2}
+    windupEuler: {x: 90, y: 112, z: 0}
+    strikePosition: {x: 0, y: 1, z: 0.7}
+    strikeEuler: {x: 90, y: -125, z: 0}
+    windupCurve:
+      serializedVersion: 2
+      m_Curve:
+      - serializedVersion: 3
+        time: 0
+        value: 0
+        inSlope: 0
+        outSlope: 3
+        tangentMode: 0
+        weightedMode: 0
+        inWeight: 0
+        outWeight: 0
+      - serializedVersion: 3
+        time: 1
+        value: 1
+        inSlope: 0
+        outSlope: 0
+        tangentMode: 0
+        weightedMode: 0
+        inWeight: 0
+        outWeight: 0
+      m_PreInfinity: 2
+      m_PostInfinity: 2
+      m_RotationOrder: 4
+    strikeCurve:
+      serializedVersion: 2
+      m_Curve:
+      - serializedVersion: 3
+        time: 0
+        value: 0
+        inSlope: 0
+        outSlope: 0
+        tangentMode: 0
+        weightedMode: 0
+        inWeight: 0
+        outWeight: 0
+      - serializedVersion: 3
+        time: 1
+        value: 1
+        inSlope: 3
+        outSlope: 0
+        tangentMode: 0
+        weightedMode: 0
+        inWeight: 0
+        outWeight: 0
+      m_PreInfinity: 2
+      m_PostInfinity: 2
+      m_RotationOrder: 4
+    recoveryCurve:
+      serializedVersion: 2
+      m_Curve:
+      - serializedVersion: 3
+        time: 0
+        value: 0
+        inSlope: 0
+        outSlope: 0
+        tangentMode: 0
+        weightedMode: 0
+        inWeight: 0
+        outWeight: 0
+      - serializedVersion: 3
+        time: 1
+        value: 1
+        inSlope: 0
+        outSlope: 0
+        tangentMode: 0
+        weightedMode: 0
+        inWeight: 0
+        outWeight: 0
+      m_PreInfinity: 2
+      m_PostInfinity: 2
+      m_RotationOrder: 4
+    damageScale: 1
+    knockbackScale: 1
+    hitStopScale: 1.2
+    shakeScale: 1.2
+    stagger: 0.35
+    jawWindup: 0
+    jawStrike: 0
+    bodyYaw: 0
+    cutOnContact: 0
+    leap: 0
+    lunge: 0.6
+    heavy: 0
+  - windup: 0.22
+    strike: 0.09
+    recovery: 0.45
+    chainAt: 0.8
+    windupPosition: {x: -0.3, y: 1.7, z: -0.1}
+    windupEuler: {x: -45, y: 0, z: 40}
+    strikePosition: {x: 0.5, y: 0.95, z: 0.9}
+    strikeEuler: {x: 105, y: 0, z: -40}
+    windupCurve:
+      serializedVersion: 2
+      m_Curve:
+      - serializedVersion: 3
+        time: 0
+        value: 0
+        inSlope: 0
+        outSlope: 3
+        tangentMode: 0
+        weightedMode: 0
+        inWeight: 0
+        outWeight: 0
+      - serializedVersion: 3
+        time: 1
+        value: 1
+        inSlope: 0
+        outSlope: 0
+        tangentMode: 0
+        weightedMode: 0
+        inWeight: 0
+        outWeight: 0
+      m_PreInfinity: 2
+      m_PostInfinity: 2
+      m_RotationOrder: 4
+    strikeCurve:
+      serializedVersion: 2
+      m_Curve:
+      - serializedVersion: 3
+        time: 0
+        value: 0
+        inSlope: 0
+        outSlope: 0
+        tangentMode: 0
+        weightedMode: 0
+        inWeight: 0
+        outWeight: 0
+      - serializedVersion: 3
+        time: 1
+        value: 1
+        inSlope: 3
+        outSlope: 0
+        tangentMode: 0
+        weightedMode: 0
+        inWeight: 0
+        outWeight: 0
+      m_PreInfinity: 2
+      m_PostInfinity: 2
+      m_RotationOrder: 4
+    recoveryCurve:
+      serializedVersion: 2
+      m_Curve:
+      - serializedVersion: 3
+        time: 0
+        value: 0
+        inSlope: 0
+        outSlope: 0
+        tangentMode: 0
+        weightedMode: 0
+        inWeight: 0
+        outWeight: 0
+      - serializedVersion: 3
+        time: 1
+        value: 1
+        inSlope: 0
+        outSlope: 0
+        tangentMode: 0
+        weightedMode: 0
+        inWeight: 0
+        outWeight: 0
+      m_PreInfinity: 2
+      m_PostInfinity: 2
+      m_RotationOrder: 4
+    damageScale: 1.8
+    knockbackScale: 2
+    hitStopScale: 1.8
+    shakeScale: 2
+    stagger: 0.6
+    jawWindup: 0
+    jawStrike: 0
+    bodyYaw: 0
+    cutOnContact: 0
+    leap: 0
+    lunge: 1.2
+    heavy: 1
+  altCombo: []
+  chainsaw: 0
+  tickInterval: 0
+  tickDamageScale: 0.25
+  sliceOnKill: 0
+  sliceDelay: 0
+  sliceBurstRadius: 0
+  instantSliceSpeed: 0
+  holdMoveScale: 1
+  swingMoveScale: 0.3
+  turnScale: 1
+  weightPull: 0
+  weightLean: 0
+  shears: 0
+  bloody: 0
+  jawClosed: -27
+  restJaw: 0
+  mirrorBlade: 0
+  hitStop: 0.08
+  shake: 0.3
+  fovPunch: 2.5
+  trailColor: {r: 0.85, g: 0.95, b: 1, a: 0.8}
+  upgradeTo: {fileID: 11400000, guid: d35e8042a7ae71943b72f74031a27de5, type: 2}

@@ -1,0 +1,13 @@
+newmtl FrameBlack
+Kd 0.085 0.105 0.13
+Ks 0.25 0.25 0.25
+Ns 50
+d 1.0
+illum 2
+
+newmtl MachinedSteel
+Kd 0.56 0.64 0.69
+Ks 0.25 0.25 0.25
+Ns 65
+d 1.0
+illum 2

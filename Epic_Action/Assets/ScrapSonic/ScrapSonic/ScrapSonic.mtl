@@ -1,0 +1,99 @@
+newmtl Casing
+Kd 0.68 0.7 0.66
+Ks 0.25 0.25 0.25
+Ns 30
+d 1.0
+illum 2
+
+newmtl Steel
+Kd 0.63 0.73 0.82
+Ks 0.25 0.25 0.25
+Ns 75
+d 1.0
+illum 2
+
+newmtl DarkSteel
+Kd 0.12 0.17 0.22
+Ks 0.25 0.25 0.25
+Ns 65
+d 1.0
+illum 2
+
+newmtl Tape
+Kd 0.7 0.2 0.065
+Ks 0.25 0.25 0.25
+Ns 15
+d 1.0
+illum 2
+
+newmtl Housing
+Kd 0.19 0.23 0.28
+Ks 0.25 0.25 0.25
+Ns 60
+d 1.0
+illum 2
+
+newmtl Copper
+Kd 0.5 0.22 0.1
+Ks 0.25 0.25 0.25
+Ns 50
+d 1.0
+illum 2
+
+newmtl Label
+Kd 1 1 1
+Ks 0.25 0.25 0.25
+Ns 15
+d 1.0
+illum 2
+map_Kd ScrapSonic_Labels.png
+
+newmtl BladeYellow
+Kd 0.97 0.59 0.035
+Ks 0.25 0.25 0.25
+Ns 64
+d 1.0
+illum 2
+
+newmtl WarningRed
+Kd 0.65 0.025 0.008
+Ks 0.25 0.25 0.25
+Ns 60
+d 1.0
+illum 2
+
+newmtl Board
+Kd 0.055 0.23 0.13
+Ks 0.25 0.25 0.25
+Ns 30
+d 1.0
+illum 2
+
+newmtl Rubber
+Kd 0.045 0.065 0.085
+Ks 0.25 0.25 0.25
+Ns 18
+d 1.0
+illum 2
+
+newmtl GaugePrint
+Kd 1 1 1
+Ks 0.25 0.25 0.25
+Ns 44
+d 1.0
+illum 2
+map_Kd ScrapSonic_Gauge.png
+
+newmtl WireRed
+Kd 0.45 0.04 0.025
+Ks 0.25 0.25 0.25
+Ns 30
+d 1.0
+illum 2
+
+newmtl WireOrange
+Kd 0.65 0.27 0.035
+Ks 0.25 0.25 0.25
+Ns 30
+d 1.0
+illum 2

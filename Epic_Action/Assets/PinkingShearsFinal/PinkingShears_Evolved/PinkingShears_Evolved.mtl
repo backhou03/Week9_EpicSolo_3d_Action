@@ -1,0 +1,41 @@
+newmtl GroundSteel
+Kd 0.66 0.74 0.81
+Ks 0.25 0.25 0.25
+Ns 70
+d 1.0
+illum 2
+
+newmtl DarkSteel
+Kd 0.12 0.17 0.22
+Ks 0.25 0.25 0.25
+Ns 65
+d 1.0
+illum 2
+
+newmtl BladeFace
+Kd 0.22 0.27 0.32
+Ks 0.25 0.25 0.25
+Ns 57
+d 1.0
+illum 2
+
+newmtl SteelFrame
+Kd 0.27 0.32 0.37
+Ks 0.25 0.25 0.25
+Ns 60
+d 1.0
+illum 2
+
+newmtl WarmGrip
+Kd 1 0.65 0.045
+Ks 0.25 0.25 0.25
+Ns 50
+d 1.0
+illum 2
+
+newmtl Rubber
+Kd 0.045 0.065 0.085
+Ks 0.25 0.25 0.25
+Ns 18
+d 1.0
+illum 2

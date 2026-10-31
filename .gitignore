@@ -1,0 +1,38 @@
+﻿# Unity
+Epic_Action/[Ll]ibrary/
+Epic_Action/[Tt]emp/
+Epic_Action/[Oo]bj/
+Epic_Action/[Bb]uild/
+Epic_Action/[Bb]uilds/
+Epic_Action/[Ll]ogs/
+Epic_Action/[Uu]ser[Ss]ettings/
+Epic_Action/[Mm]emoryCaptures/
+
+# IDE / generated
+.vs/
+.idea/
+*.csproj
+*.sln
+*.slnx
+*.suo
+*.user
+*.pidb
+*.booproj
+*.svd
+*.pdb
+*.mdb
+*.opendb
+*.VC.db
+.vsconfig
+
+# Crash / OS
+sysinfo.txt
+*.apk
+*.aab
+*.unitypackage
+.DS_Store
+Thumbs.db
+
+# 제외 폴더
+Exports/
+참고자료/

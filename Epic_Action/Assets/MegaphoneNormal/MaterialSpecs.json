@@ -1,0 +1,82 @@
+{
+  "materials": [
+    {
+      "name": "WhitePlastic",
+      "color": [
+        0.8,
+        0.81,
+        0.76,
+        1
+      ],
+      "metal": 0,
+      "rough": 0.56,
+      "texture": "",
+      "emission": []
+    },
+    {
+      "name": "BlackPlastic",
+      "color": [
+        0.075,
+        0.09,
+        0.1,
+        1
+      ],
+      "metal": 0,
+      "rough": 0.7,
+      "texture": "",
+      "emission": []
+    },
+    {
+      "name": "InnerPlastic",
+      "color": [
+        0.62,
+        0.64,
+        0.61,
+        1
+      ],
+      "metal": 0,
+      "rough": 0.7,
+      "texture": "",
+      "emission": []
+    },
+    {
+      "name": "OrangeTrim",
+      "color": [
+        0.8,
+        0.24,
+        0.07,
+        1
+      ],
+      "metal": 0,
+      "rough": 0.58,
+      "texture": "",
+      "emission": []
+    },
+    {
+      "name": "SwitchRed",
+      "color": [
+        0.6,
+        0.07,
+        0.035,
+        1
+      ],
+      "metal": 0,
+      "rough": 0.5,
+      "texture": "",
+      "emission": []
+    },
+    {
+      "name": "Rubber",
+      "color": [
+        0.045,
+        0.065,
+        0.085,
+        1
+      ],
+      "metal": 0,
+      "rough": 0.82,
+      "texture": "",
+      "emission": []
+    }
+  ]
+}

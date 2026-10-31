@@ -1,0 +1,216 @@
+{
+  "materials": [
+    {
+      "name": "PetrolBlue",
+      "color": [
+        0.045,
+        0.25,
+        0.33,
+        1
+      ],
+      "metal": 0.3,
+      "rough": 0.43,
+      "emission": []
+    },
+    {
+      "name": "FrameBlack",
+      "color": [
+        0.085,
+        0.105,
+        0.13,
+        1
+      ],
+      "metal": 0.55,
+      "rough": 0.5,
+      "emission": []
+    },
+    {
+      "name": "Ivory",
+      "color": [
+        0.78,
+        0.73,
+        0.61,
+        1
+      ],
+      "metal": 0.05,
+      "rough": 0.6,
+      "emission": []
+    },
+    {
+      "name": "Steel",
+      "color": [
+        0.63,
+        0.73,
+        0.82,
+        1
+      ],
+      "metal": 0.8,
+      "rough": 0.25,
+      "emission": []
+    },
+    {
+      "name": "Rubber",
+      "color": [
+        0.045,
+        0.065,
+        0.085,
+        1
+      ],
+      "metal": 0,
+      "rough": 0.82,
+      "emission": []
+    },
+    {
+      "name": "MachinedSteel",
+      "color": [
+        0.56,
+        0.64,
+        0.69,
+        1
+      ],
+      "metal": 0.8,
+      "rough": 0.35,
+      "emission": []
+    },
+    {
+      "name": "Graphite",
+      "color": [
+        0.17,
+        0.21,
+        0.25,
+        1
+      ],
+      "metal": 0.65,
+      "rough": 0.45,
+      "emission": []
+    },
+    {
+      "name": "LatchOrange",
+      "color": [
+        0.83,
+        0.31,
+        0.045,
+        1
+      ],
+      "metal": 0.15,
+      "rough": 0.47,
+      "emission": []
+    },
+    {
+      "name": "GripRings",
+      "color": [
+        0.11,
+        0.15,
+        0.18,
+        1
+      ],
+      "metal": 0.1,
+      "rough": 0.65,
+      "emission": []
+    },
+    {
+      "name": "FastenerSteel",
+      "color": [
+        0.58,
+        0.66,
+        0.71,
+        1
+      ],
+      "metal": 0.75,
+      "rough": 0.4,
+      "emission": []
+    },
+    {
+      "name": "Copper",
+      "color": [
+        0.46,
+        0.25,
+        0.1,
+        1
+      ],
+      "metal": 0.65,
+      "rough": 0.5,
+      "emission": []
+    },
+    {
+      "name": "Ammo1",
+      "color": [
+        1,
+        0.46,
+        0.025,
+        1
+      ],
+      "metal": 0,
+      "rough": 0.35,
+      "emission": [
+        1,
+        0.2,
+        0.003
+      ]
+    },
+    {
+      "name": "Ammo2",
+      "color": [
+        1,
+        0.46,
+        0.025,
+        1
+      ],
+      "metal": 0,
+      "rough": 0.35,
+      "emission": [
+        1,
+        0.2,
+        0.003
+      ]
+    },
+    {
+      "name": "Ammo3",
+      "color": [
+        1,
+        0.46,
+        0.025,
+        1
+      ],
+      "metal": 0,
+      "rough": 0.35,
+      "emission": [
+        1,
+        0.2,
+        0.003
+      ]
+    },
+    {
+      "name": "Ammo4",
+      "color": [
+        1,
+        0.46,
+        0.025,
+        1
+      ],
+      "metal": 0,
+      "rough": 0.35,
+      "emission": [
+        1,
+        0.2,
+        0.003
+      ]
+    },
+    {
+      "name": "Ammo5",
+      "color": [
+        1,
+        0.46,
+        0.025,
+        1
+      ],
+      "metal": 0,
+      "rough": 0.35,
+      "emission": [
+        1,
+        0.2,
+        0.003
+      ]
+    }
+  ]
+}

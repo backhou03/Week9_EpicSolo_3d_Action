@@ -1,0 +1,41 @@
+newmtl PetrolBlue
+Kd 0.045 0.25 0.33
+Ks 0.25 0.25 0.25
+Ns 57
+d 1.0
+illum 2
+
+newmtl FrameBlack
+Kd 0.085 0.105 0.13
+Ks 0.25 0.25 0.25
+Ns 50
+d 1.0
+illum 2
+
+newmtl Graphite
+Kd 0.17 0.21 0.25
+Ks 0.25 0.25 0.25
+Ns 55
+d 1.0
+illum 2
+
+newmtl MachinedSteel
+Kd 0.56 0.64 0.69
+Ks 0.25 0.25 0.25
+Ns 65
+d 1.0
+illum 2
+
+newmtl Steel
+Kd 0.63 0.73 0.82
+Ks 0.25 0.25 0.25
+Ns 75
+d 1.0
+illum 2
+
+newmtl Rubber
+Kd 0.045 0.065 0.085
+Ks 0.25 0.25 0.25
+Ns 18
+d 1.0
+illum 2

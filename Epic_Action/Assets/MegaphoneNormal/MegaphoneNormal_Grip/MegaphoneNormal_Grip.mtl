@@ -1,0 +1,27 @@
+newmtl BlackPlastic
+Kd 0.075 0.09 0.1
+Ks 0.25 0.25 0.25
+Ns 30
+d 1.0
+illum 2
+
+newmtl OrangeTrim
+Kd 0.8 0.24 0.07
+Ks 0.25 0.25 0.25
+Ns 42
+d 1.0
+illum 2
+
+newmtl SwitchRed
+Kd 0.6 0.07 0.035
+Ks 0.25 0.25 0.25
+Ns 50
+d 1.0
+illum 2
+
+newmtl Rubber
+Kd 0.045 0.065 0.085
+Ks 0.25 0.25 0.25
+Ns 18
+d 1.0
+illum 2

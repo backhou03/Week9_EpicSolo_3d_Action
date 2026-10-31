@@ -1,0 +1,20 @@
+newmtl WireRed
+Kd 0.45 0.04 0.025
+Ks 0.25 0.25 0.25
+Ns 30
+d 1.0
+illum 2
+
+newmtl WireOrange
+Kd 0.65 0.27 0.035
+Ks 0.25 0.25 0.25
+Ns 30
+d 1.0
+illum 2
+
+newmtl Rubber
+Kd 0.045 0.065 0.085
+Ks 0.25 0.25 0.25
+Ns 18
+d 1.0
+illum 2

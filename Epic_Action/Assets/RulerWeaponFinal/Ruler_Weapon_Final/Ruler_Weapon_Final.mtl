@@ -1,0 +1,21 @@
+newmtl DarkSteel
+Kd 0.12 0.17 0.22
+Ks 0.25 0.25 0.25
+Ns 65
+d 1.0
+illum 2
+
+newmtl EdgeSteel
+Kd 0.86 0.92 0.97
+Ks 0.25 0.25 0.25
+Ns 81
+d 1.0
+illum 2
+
+newmtl WeaponPrint
+Kd 1 1 1
+Ks 0.25 0.25 0.25
+Ns 54
+d 1.0
+illum 2
+map_Kd RulerWeapon_Albedo.png

@@ -1,0 +1,20 @@
+newmtl Housing
+Kd 0.19 0.23 0.28
+Ks 0.25 0.25 0.25
+Ns 60
+d 1.0
+illum 2
+
+newmtl Rubber
+Kd 0.045 0.065 0.085
+Ks 0.25 0.25 0.25
+Ns 18
+d 1.0
+illum 2
+
+newmtl Tape
+Kd 0.7 0.2 0.065
+Ks 0.25 0.25 0.25
+Ns 15
+d 1.0
+illum 2
