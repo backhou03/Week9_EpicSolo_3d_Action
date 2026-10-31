@@ -10,20 +10,21 @@ public class WeaponAvatar : MonoBehaviour
     [SerializeField] ThirdPersonCamera cameraRig;
     [SerializeField] WeaponSwinger swinger;
     [SerializeField] Transform motion;
-    [Tooltip("Number keys 1..n pick these weapons.")]
-    [SerializeField] WeaponData[] slots = new WeaponData[5];
+    [Tooltip("Number keys 1 and 2 select the carried weapons.")]
+    [SerializeField] WeaponData[] slots = new WeaponData[2];
+    [SerializeField] WeaponData[] reserveWeapons = new WeaponData[2];
     [SerializeField] float gravity = -25f;
 
     CharacterController cc;
-    InputAction move, jump, attack, altAttack, skill;
+    InputAction move, jump, attack, altAttack, skill, sprint;
     AvatarMoveset moveset;
     WeaponData weapon;
     GameObject visual;
 
-    // Per slot: the evolution it has reached and the progress toward the next one (kept across weapon swaps).
-    WeaponData[] slotWeapons;
-    int[] slotKills, slotDamage;
+    const float UltimateDamageRequired = 300f;
     int slot;
+    float invulnerableUntil, dashReadyAt;
+    readonly System.Collections.Generic.Dictionary<WeaponData, float> skillReadyAt = new System.Collections.Generic.Dictionary<WeaponData, float>();
 
     Vector3 lungeVelocity;
     float lungeTimeLeft;
@@ -34,15 +35,27 @@ public class WeaponAvatar : MonoBehaviour
     public WeaponSwinger Swinger => swinger;
     public Transform Motion => motion;
     public WeaponData[] Slots => slots;
+    public WeaponData[] ReserveWeapons => reserveWeapons;
     public float Gravity => gravity;
     public bool IsGrounded => cc.isGrounded;
-    public int Kills => slotKills != null ? slotKills[slot] : 0;
-    public int DamageDealt => slotDamage != null ? slotDamage[slot] : 0;
-    public bool CanEvolve => weapon != null && weapon.upgradeTo != null
-        && (Kills >= weapon.evolveKills || DamageDealt >= weapon.evolveDamage);
+    public bool Invulnerable => Time.time < invulnerableUntil;
+    public float UltimateGauge { get; private set; }
+    public bool UltimateReady => UltimateGauge >= 1f;
+    public float DashCooldownRemaining => Mathf.Max(0f, dashReadyAt - Time.time);
+    public float SkillCooldownRemaining => weapon != null && skillReadyAt.TryGetValue(weapon, out float readyAt)
+        ? Mathf.Max(0f, readyAt - Time.time) : 0f;
+    public WeaponData SlotWeapon(int i) => slots[i];
 
-    // The weapon currently held by slot `i` (its evolution, once evolved).
-    public WeaponData SlotWeapon(int i) => slotWeapons != null ? slotWeapons[i] : slots[i];
+    public void GrantInvulnerability(float duration) => invulnerableUntil = Mathf.Max(invulnerableUntil, Time.time + duration);
+    public void BeginDashCooldown(float duration) => dashReadyAt = Time.time + duration;
+    public void BeginSkillCooldown(float duration) => skillReadyAt[weapon] = Time.time + duration;
+
+    public bool TryUseUltimate()
+    {
+        if (!UltimateReady) return false;
+        UltimateGauge = 0f;
+        return true;
+    }
 
     // Set by the moveset every frame; gravity and the CharacterController move are applied here.
     public Vector3 PlanarVelocity { get; set; }
@@ -61,14 +74,12 @@ public class WeaponAvatar : MonoBehaviour
         attack = map.FindAction("Attack", true);
         altAttack = map.FindAction("AltAttack", true);
         skill = map.FindAction("Skill", true);
+        sprint = map.FindAction("Sprint", true);
         map.Enable();
     }
 
     void Start()
     {
-        slotWeapons = (WeaponData[])slots.Clone();
-        slotKills = new int[slots.Length];
-        slotDamage = new int[slots.Length];
         if (slots.Length > 0 && slots[0] != null) Equip(slots[0]);
     }
 
@@ -78,8 +89,6 @@ public class WeaponAvatar : MonoBehaviour
         ReadWeaponKeys();
         if (moveset == null) return;
 
-        if (skill.WasPressedThisFrame() && !moveset.Busy && CanEvolve) Evolve();
-
         Vector2 stick = move.ReadValue<Vector2>();
         Vector3 wish = Quaternion.Euler(0f, cameraRig.Yaw, 0f) * new Vector3(stick.x, 0f, stick.y);
         var input = new AvatarInput
@@ -88,8 +97,10 @@ public class WeaponAvatar : MonoBehaviour
             jump = jump.WasPressedThisFrame(),
             attack = attack.WasPressedThisFrame(),
             attackHeld = attack.IsPressed(),
-            alt = altAttack.WasPressedThisFrame(),
-            altHeld = altAttack.IsPressed(),
+            dash = altAttack.WasPressedThisFrame(),
+            sprint = sprint.IsPressed(),
+            skill = skill.WasPressedThisFrame(),
+            ultimate = Keyboard.current != null && Keyboard.current[Key.Q].wasPressedThisFrame,
             melee = Keyboard.current != null && Keyboard.current[Key.V].wasPressedThisFrame,
         };
 
@@ -110,32 +121,33 @@ public class WeaponAvatar : MonoBehaviour
     {
         var keyboard = Keyboard.current;
         if (keyboard == null) return;
-        for (int i = 0; i < slots.Length && i < 9; i++)
+        for (int i = 0; i < slots.Length && i < 2; i++)
         {
-            if (!keyboard[Key.Digit1 + i].wasPressedThisFrame || slotWeapons[i] == null) continue;
+            if (!keyboard[Key.Digit1 + i].wasPressedThisFrame || slots[i] == null || slot == i) continue;
             slot = i;
-            Equip(slotWeapons[i]);
+            Equip(slots[i]);
+            moveset.ActivateSpecial();
             return;
+        }
+        // The reserve pool is a queue; the outgoing weapon joins its tail.
+        if (keyboard[Key.F].wasPressedThisFrame && reserveWeapons.Length > 0 && reserveWeapons[0] != null)
+        {
+            WeaponData previous = slots[slot];
+            slots[slot] = reserveWeapons[0];
+            for (int i = 1; i < reserveWeapons.Length; i++) reserveWeapons[i - 1] = reserveWeapons[i];
+            reserveWeapons[reserveWeapons.Length - 1] = previous;
+            Equip(slots[slot]);
+            moveset.ActivateSpecial();
         }
     }
 
     // Called by the moveset for every hit it lands on an enemy.
     public void RecordHit(int damage, bool killed)
     {
-        if (slotKills == null) return;
-        slotDamage[slot] += damage;
-        if (killed) slotKills[slot]++;
+        UltimateGauge = Mathf.Clamp01(UltimateGauge + Mathf.Max(0, damage) / UltimateDamageRequired);
     }
 
-    void Evolve()
-    {
-        HitFeedback.Instance.PlayUpgrade();
-        slotWeapons[slot] = weapon.upgradeTo;
-        slotKills[slot] = 0;
-        slotDamage[slot] = 0;
-        Equip(weapon.upgradeTo);
-        HitFeedback.Instance.PlayUpgradeFlash(visual.transform.position + Vector3.up * 0.8f);
-    }
+    public void CancelLunge() => lungeTimeLeft = 0f;
 
     // Moves `distance` metres along `direction` over `duration` seconds.
     public void Lunge(Vector3 direction, float distance, float duration)
@@ -181,6 +193,7 @@ public class WeaponAvatar : MonoBehaviour
 
     AvatarMoveset AddMoveset(WeaponData data)
     {
+        if (data.hammer) return gameObject.AddComponent<HammerMoveset>();
         if (data.chainsaw) return gameObject.AddComponent<ChainsawMoveset>();
         if (data.shears) return gameObject.AddComponent<ShearsMoveset>();
         if (data.rifle) return gameObject.AddComponent<RifleMoveset>();

@@ -6,7 +6,7 @@ public struct AvatarInput
     public Vector3 wish;
     public bool jump;
     public bool attack, attackHeld;
-    public bool alt, altHeld;
+    public bool dash, sprint, skill, ultimate;
     // V key: melee attack for weapons that spend the mouse buttons on something else (rifle).
     public bool melee;
 }
@@ -40,9 +40,17 @@ public abstract class AvatarMoveset : MonoBehaviour
     int comboIndex, altComboIndex;
     float lastSwingEnd = -10f;
     float bufferedAttackTime = -10f;
-    float bufferedAltTime = -10f;
+    protected float SprintMultiplier = 1.5f;
+    protected float MoveSpeedScale => sprinting ? SprintMultiplier : 1f;
+    protected virtual float SkillCooldown => 5f;
+    const float DashCooldown = 0.6f;
+    const float DashDuration = 0.18f;
+    const float DashDistance = 3f;
+    bool sprinting;
+    float dashTimeLeft;
 
-    // True while an attack is running (weapon switches still cut it; evolving waits).
+
+    // True while an attack is running.
     public virtual bool Busy => swinging;
     public virtual float ChargeProgress => 0f;
     // True while the camera looks through the weapon's sights (the HUD crosshair hides).
@@ -84,34 +92,79 @@ public abstract class AvatarMoveset : MonoBehaviour
 
     public void Tick(AvatarInput input, float dt)
     {
+        sprinting = input.sprint;
         attackHeld = input.attackHeld;
-        TickAttack(input, dt);
+        if (input.dash && avatar.DashCooldownRemaining <= 0f)
+        {
+            CancelAttack();
+            avatar.BeginDashCooldown(DashCooldown);
+            dashTimeLeft = DashDuration;
+            OnDash(input.wish.sqrMagnitude > 0.01f ? input.wish.normalized : transform.forward);
+        }
+        if (dashTimeLeft > 0f)
+        {
+            dashTimeLeft -= dt;
+            Locomote(new AvatarInput { wish = input.wish, sprint = input.sprint }, dt);
+            return;
+        }
+        if (!Busy && input.ultimate && avatar.TryUseUltimate()) OnUltimate();
+        else if (!Busy && input.skill && avatar.SkillCooldownRemaining <= 0f)
+        {
+            avatar.BeginSkillCooldown(SkillCooldown);
+            OnSkill();
+        }
+        else TickAttack(input, dt);
         Locomote(input, dt);
+    }
+
+    public void ActivateSpecial() => OnSpecial();
+
+    protected virtual void OnDash(Vector3 dir)
+    {
+        avatar.GrantInvulnerability(DashDuration);
+        avatar.Lunge(dir, DashDistance, DashDuration);
+    }
+
+    protected virtual void OnSkill() { }
+    protected virtual void OnSpecial() { }
+    protected virtual void OnUltimate() { }
+
+    protected virtual void CancelAttack()
+    {
+        swinger.Cancel();
+        avatar.CancelLunge();
+        swinging = false;
+        currentAlt = false;
+        comboIndex = altComboIndex = 0;
+        bufferedAttackTime = -10f;
+        lastSwingEnd = Time.time;
+        assistTarget = null;
+        if (hitbox != null) hitbox.SetActive(false);
+        if (trail != null) trail.Emitting = false;
     }
 
     // Planar velocity, jump and Motion offsets for this frame.
     protected abstract void Locomote(AvatarInput input, float dt);
 
-    // Default: buffered WeaponData combo on left (combo) and right (altCombo) click.
+    // Default: buffered WeaponData combo on left click.
     protected virtual void TickAttack(AvatarInput input, float dt)
     {
-        if (input.attack) bufferedAttackTime = Time.unscaledTime;
-        if (input.alt) bufferedAltTime = Time.unscaledTime;
+        TickCombo(input.attack, false);
+    }
 
-        bool wantAttack = weapon.combo.Count > 0 && Time.unscaledTime - bufferedAttackTime <= AttackBuffer;
-        bool wantAlt = weapon.altCombo.Count > 0 && Time.unscaledTime - bufferedAltTime <= AttackBuffer;
-        if (!wantAttack && !wantAlt) return;
-
-        // When both are buffered, the more recent press wins.
-        bool alt = wantAlt && (!wantAttack || bufferedAltTime > bufferedAttackTime);
-        if (!swinging || (swinger.Phase == SwingPhase.Recovery && swinger.PhaseProgress >= currentSwing.chainAt))
+    // alt selects existing air/stock combo data, never the right mouse button.
+    protected void TickCombo(bool pressed, bool alt)
+    {
+        if (pressed) bufferedAttackTime = Time.unscaledTime;
+        var list = alt ? weapon.altCombo : weapon.combo;
+        bool wantAttack = list.Count > 0 && Time.unscaledTime - bufferedAttackTime <= AttackBuffer;
+        if (wantAttack && (!swinging || (swinger.Phase == SwingPhase.Recovery && swinger.PhaseProgress >= currentSwing.chainAt)))
             StartSwing(alt);
     }
 
     protected virtual void StartSwing(bool alt)
     {
         bufferedAttackTime = -10f;
-        bufferedAltTime = -10f;
 
         var list = alt ? weapon.altCombo : weapon.combo;
         int index = alt ? altComboIndex : comboIndex;
@@ -255,18 +308,21 @@ public abstract class AvatarMoveset : MonoBehaviour
 
     protected void RelaxMotion(float dt) => EaseMotion(Vector3.zero, Quaternion.identity, Vector3.one, 20f, dt);
 
-    protected Enemy FindAssistTarget()
+    protected Enemy FindAssistTarget() => FindAssistTarget(AssistRange, AssistAngle);
+
+    protected Enemy FindAssistTarget(float range, float angle) => FindAssistTarget(range, angle, CameraForward);
+
+    protected Enemy FindAssistTarget(float range, float angle, Vector3 forward)
     {
-        Vector3 forward = CameraForward;
         Enemy best = null;
-        float bestDistance = AssistRange;
+        float bestDistance = range;
         foreach (var enemy in FindObjectsByType<Enemy>(FindObjectsSortMode.None))
         {
             if (enemy.IsDead) continue;
             Vector3 to = enemy.transform.position - transform.position;
             to.y = 0f;
             float distance = to.magnitude;
-            if (distance < 0.01f || distance >= bestDistance || Vector3.Angle(forward, to) > AssistAngle) continue;
+            if (distance < 0.01f || distance >= bestDistance || Vector3.Angle(forward, to) > angle) continue;
             best = enemy;
             bestDistance = distance;
         }

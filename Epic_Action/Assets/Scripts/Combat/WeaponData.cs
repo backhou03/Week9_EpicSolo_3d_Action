@@ -86,6 +86,9 @@ public class SwingData
 [CreateAssetMenu(menuName = "Epic Action/Weapon Data")]
 public class WeaponData : ScriptableObject
 {
+    [Header("Hammer (weapon avatar)")]
+    public bool hammer;
+
     [Header("Info (HUD)")]
     public string displayName;
     [TextArea(2, 8)] public string description;
@@ -156,6 +159,15 @@ public class WeaponData : ScriptableObject
     public float rifleStandPitch = -78f;
     [Tooltip("Hip-fire snaps to the nearest enemy.")]
     public bool rifleAimAssist = true;
+
+    [Header("Rifle machine gun (ultimate)")]
+    public GameObject rifleMachinePrefab;
+    public float rifleMachineScale = 1f;
+    public Vector3 rifleMachineGrip;
+    public Vector3 rifleMachineMuzzle;
+    public Vector3 rifleMachineSightRear;
+    public Vector3 rifleMachineSightFront;
+    public Vector3 rifleMachineStandPivot;
 
     [Header("Chainsaw")]
     [Tooltip("Attach ChainsawDriver (chain loop, engine sound) to the weapon visual.")]

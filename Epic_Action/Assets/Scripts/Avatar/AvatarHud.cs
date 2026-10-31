@@ -4,7 +4,7 @@ using UnityEngine;
 // Bottom-right panel for the weapon avatar (weapon, number-key slots, controls), drawn with IMGUI like WeaponHud.
 public class AvatarHud : MonoBehaviour
 {
-    const string Controls = "WASD 이동 · Space 점프 · 좌/우클릭 공격 · Q 진화 · 1~3 무기 교체";
+    const string Controls = "WASD 이동 · Shift 질주 · Space 점프 · 좌클릭 공격 · 우클릭 대시 · E 스킬 · Q 궁극기 · 1·2 교체 · F 예비 교체";
 
     [SerializeField] WeaponAvatar avatar;
 
@@ -38,18 +38,17 @@ public class AvatarHud : MonoBehaviour
             string label = (i + 1) + " " + held.displayName;
             text.Append(held == weapon ? "[" + label + "]" : label).Append("  ");
         }
+        text.Append("\nF 예비 (다음 →): ");
+        foreach (var reserve in avatar.ReserveWeapons)
+            if (reserve != null) text.Append(reserve.displayName).Append("  ");
         text.Append('\n').Append(Controls);
-        if (weapon.upgradeTo != null)
-            text.Append('\n').Append(avatar.CanEvolve
-                ? "Q 진화 가능! → " + weapon.upgradeTo.displayName
-                : $"진화: 처치 {avatar.Kills}/{weapon.evolveKills} · 데미지 {avatar.DamageDealt}/{weapon.evolveDamage}");
-
+        text.Append('\n').Append($"E 스킬 쿨다운 {avatar.SkillCooldownRemaining:F1}초 · Q 궁극기 {avatar.UltimateGauge:P0} ({avatar.UltimateGauge:F2})");
         var moveset = avatar.Moveset;
         if (moveset != null)
         {
             if (!string.IsNullOrEmpty(moveset.Status)) text.Append('\n').Append(moveset.Status);
             float progress = moveset.ChargeProgress;
-            if (progress > 0f) text.Append(progress >= 1f ? "\n충전 완료! 버튼을 놓으면 발사" : $"\n충전 중 {progress:P0} · 도중에 놓으면 취소");
+            if (progress > 0f && !weapon.hammer) text.Append(progress >= 1f ? "\n충전 완료! 버튼을 놓으면 발사" : $"\n충전 중 {progress:P0} · 도중에 놓으면 취소");
         }
         string body = text.ToString();
 

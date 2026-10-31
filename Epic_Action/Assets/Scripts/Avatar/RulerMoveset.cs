@@ -33,7 +33,7 @@ public class RulerMoveset : AvatarMoveset
 
         if (swinging)
         {
-            Accelerate(input.wish * (MoveSpeed * weapon.swingMoveScale), Acceleration, dt);
+            Accelerate(input.wish * (MoveSpeed * MoveSpeedScale * weapon.swingMoveScale), Acceleration, dt);
             RelaxMotion(dt);
             return;
         }
@@ -43,7 +43,7 @@ public class RulerMoveset : AvatarMoveset
         // A started step always finishes, so the ruler never stops leaning on one end.
         float step = tumble - Mathf.Floor(tumble);
         bool moving = input.wish.sqrMagnitude > 0.01f || step > 0.001f;
-        float speed = moving ? MoveSpeed * Mathf.Max(input.wish.magnitude, 0.6f) : 0f;
+        float speed = moving ? MoveSpeed * MoveSpeedScale * Mathf.Max(input.wish.magnitude, 0.6f) : 0f;
         Accelerate(transform.forward * speed, Acceleration, dt);
 
         if (avatar.IsGrounded && moving)

@@ -35,6 +35,19 @@ public class ThirdPersonCamera : MonoBehaviour
     float fovKick, fovKickEnd, fovKickDuration = 1f;
     float zoomBlend, defaultNearClip;
     Transform lastSight;
+    float framingScale = 1f;
+    Transform framingVisual;
+    Renderer[] framingRenderers;
+
+    // Temporary large forms opt in; all other weapons keep the serialized framing.
+    public void SetFramingScale(float scale, Transform weaponVisual = null)
+    {
+        framingScale = Mathf.Max(1f, scale);
+        if (framingScale <= 1f) weaponVisual = null;
+        if (framingVisual == weaponVisual) return;
+        framingVisual = weaponVisual;
+        framingRenderers = weaponVisual != null ? weaponVisual.GetComponentsInChildren<Renderer>() : null;
+    }
 
     void Awake()
     {
@@ -95,19 +108,24 @@ public class ThirdPersonCamera : MonoBehaviour
 
         Quaternion yawRot = Quaternion.Euler(0f, yaw, 0f);
         Quaternion rot = Quaternion.Euler(pitch, yaw, 0f);
-        Vector3 pivot = smoothedPivot + yawRot * pivotOffset;
+        Vector3 pivot = smoothedPivot + yawRot * (pivotOffset * framingScale);
         Vector3 back = rot * Vector3.back;
 
-        float allowed = distance;
-        int n = Physics.SphereCastNonAlloc(pivot, collisionRadius, back, hits, distance, ~0, QueryTriggerInteraction.Ignore);
-        for (int i = 0; i < n; i++)
-        {
-            var c = hits[i].collider;
-            if (c.transform.IsChildOf(target) || c.GetComponentInParent<Enemy>() != null) continue;
-            allowed = Mathf.Min(allowed, hits[i].distance);
-        }
-        allowed = Mathf.Max(allowed, 0.6f);
+        float desiredDistance = distance * framingScale;
+        float allowed = CollisionDistance(pivot, back, desiredDistance);
         currentDistance = allowed < currentDistance ? allowed : Mathf.Lerp(currentDistance, allowed, 1f - Mathf.Exp(-8f * dt));
+
+        // A wall may push the eye into a large weapon. Recast from above its bounds.
+        if (TryFramingBounds(out Bounds bounds))
+        {
+            float clearance = collisionRadius + cam.nearClipPlane;
+            bounds.Expand(clearance * 2f);
+            if (bounds.Contains(pivot + back * currentDistance))
+            {
+                pivot.y = Mathf.Max(pivot.y, bounds.max.y + clearance + Mathf.Max(0f, -back.y) * desiredDistance);
+                currentDistance = CollisionDistance(pivot, back, desiredDistance);
+            }
+        }
 
         transform.position = pivot + back * currentDistance;
         transform.rotation = rot;
@@ -115,6 +133,34 @@ public class ThirdPersonCamera : MonoBehaviour
         ApplySight();
         ApplyShake();
         ApplyFov();
+    }
+
+    float CollisionDistance(Vector3 pivot, Vector3 back, float desired)
+    {
+        float allowed = desired;
+        int n = Physics.SphereCastNonAlloc(pivot, collisionRadius, back, hits, desired, ~0, QueryTriggerInteraction.Ignore);
+        for (int i = 0; i < n; i++)
+        {
+            var c = hits[i].collider;
+            if (c.transform.IsChildOf(target) || c.GetComponentInParent<Enemy>() != null) continue;
+            allowed = Mathf.Min(allowed, hits[i].distance);
+        }
+        return Mathf.Max(allowed, 0.6f);
+    }
+
+    bool TryFramingBounds(out Bounds bounds)
+    {
+        bounds = default;
+        bool found = false;
+        if (framingVisual == null || framingRenderers == null) return false;
+        foreach (var r in framingRenderers)
+        {
+            if (r == null || !r.enabled || !r.gameObject.activeInHierarchy) continue;
+            if (!found) bounds = r.bounds;
+            else bounds.Encapsulate(r.bounds);
+            found = true;
+        }
+        return found;
     }
 
     // Blends the eye from the third-person position to just behind the sight point; the view direction stays on the mouse.
